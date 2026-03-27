@@ -48,16 +48,13 @@ export function DiffPanel({ workspaceId, api, sessionStatus, transcript }: DiffP
   // Derive edited files from session transcript (always available, even without git)
   const sessionFiles = useMemo(() => extractEditedFiles(transcript), [transcript]);
 
-  // Merge: session-derived files first, then any additional git-only changes
+  // Only show session-derived files, enriched with git status when available.
+  // Git-only changes (pre-existing uncommitted work) are NOT shown — the Changes
+  // panel reflects what THIS session touched, not the full repo state.
   const files = useMemo(() => {
-    const merged = [...sessionFiles];
-    const sessionPaths = new Set(sessionFiles.map((f) => f.path));
-    for (const gf of gitFiles) {
-      if (!sessionPaths.has(gf.path)) {
-        merged.push(gf);
-      }
-    }
-    return merged;
+    if (gitFiles.length === 0) return sessionFiles;
+    const gitByPath = new Map(gitFiles.map((gf) => [gf.path, gf]));
+    return sessionFiles.map((sf) => gitByPath.get(sf.path) ?? sf);
   }, [sessionFiles, gitFiles]);
 
   const refresh = useCallback(() => {
@@ -66,11 +63,7 @@ export function DiffPanel({ workspaceId, api, sessionStatus, transcript }: DiffP
       setGitFiles(result);
       setHasGit(true);
       setSelectedFile((current) => {
-        const allPaths = new Set([
-          ...result.map((f) => f.path),
-          ...sessionFiles.map((f) => f.path),
-        ]);
-        if (current && !allPaths.has(current)) {
+        if (current && !sessionFiles.some((f) => f.path === current)) {
           return null;
         }
         return current;
