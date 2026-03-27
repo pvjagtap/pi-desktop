@@ -262,10 +262,28 @@
   width: 100%;
   display: grid;
   align-items: center;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  gap: 10px;
+  grid-template-columns: auto auto minmax(0, 1fr) auto;
+  gap: 6px;
   text-align: left;
   color: inherit;
+}
+
+.workspace-row__chevron {
+  width: 14px;
+  height: 14px;
+  display: grid;
+  place-items: center;
+  transition: transform 140ms ease;
+  transform: rotate(-90deg);
+}
+
+.workspace-row__chevron--open {
+  transform: rotate(0deg);
+}
+
+.workspace-row__chevron svg {
+  width: 12px;
+  height: 12px;
 }
 
 .worktree-row__select {

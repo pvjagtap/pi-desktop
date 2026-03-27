@@ -161,14 +161,24 @@ export function Sidebar(props: SidebarProps) {
                 rootWorkspace.id === selectedWorkspace?.rootWorkspaceId;
               const linkedWorktree = linkedWorktreeByWorkspaceId.get(rootWorkspace.id);
               const archivedSectionOpen = wsMenu.expandedArchivedByWorkspace[rootWorkspace.id] ?? false;
+              const workspaceExpanded = wsMenu.expandedWorkspacesByWorkspace[rootWorkspace.id] ?? true;
               return (
                 <section key={rootWorkspace.id} className="workspace-group">
                   <div className={`workspace-row ${workspaceActive ? "workspace-row--active" : ""}`}>
                     <button
                       className="workspace-row__select"
-                      onClick={() => wsMenu.selectWorkspace(rootWorkspace.id)}
+                      onClick={() => {
+                        wsMenu.toggleWorkspaceExpanded(rootWorkspace.id);
+                        wsMenu.selectWorkspace(rootWorkspace.id);
+                      }}
                       type="button"
                     >
+                      <span
+                        aria-hidden="true"
+                        className={`workspace-row__chevron ${workspaceExpanded ? "workspace-row__chevron--open" : ""}`}
+                      >
+                        <ChevronDownIcon />
+                      </span>
                       <span className="workspace-row__icon" aria-hidden="true">
                         <FolderIcon />
                       </span>
@@ -281,66 +291,70 @@ export function Sidebar(props: SidebarProps) {
                       </div>
                     </form>
                   ) : null}
-                  <div className="session-list">
-                    {threads.map((thread) => {
-                      const active = thread.workspaceId === selectedWorkspace?.id && thread.session.id === selectedSession?.id;
-                      return (
-                        <ThreadSessionRow
-                          key={`${thread.workspaceId}:${thread.session.id}`}
-                          active={active}
-                          thread={thread}
-                          onAction={() =>
-                            onArchiveSession(rootWorkspace.id, {
-                              workspaceId: thread.workspaceId,
-                              sessionId: thread.session.id,
-                            })
-                          }
-                          onSelect={() => onSelectSession({ workspaceId: thread.workspaceId, sessionId: thread.session.id })}
-                        />
-                      );
+                  {workspaceExpanded ? (
+                    <>
+                      <div className="session-list">
+                        {threads.map((thread) => {
+                          const active = thread.workspaceId === selectedWorkspace?.id && thread.session.id === selectedSession?.id;
+                          return (
+                            <ThreadSessionRow
+                              key={`${thread.workspaceId}:${thread.session.id}`}
+                              active={active}
+                              thread={thread}
+                              onAction={() =>
+                                onArchiveSession(rootWorkspace.id, {
+                                  workspaceId: thread.workspaceId,
+                                  sessionId: thread.session.id,
+                                })
+                              }
+                              onSelect={() => onSelectSession({ workspaceId: thread.workspaceId, sessionId: thread.session.id })}
+                            />
+                          );
                     })}
-                  </div>
-                  {archivedThreads.length > 0 ? (
-                    <div className="archived-thread-group">
-                      <button
-                        aria-expanded={archivedSectionOpen}
-                        className="archived-thread-group__toggle"
-                        type="button"
-                        onClick={() => wsMenu.toggleArchived(rootWorkspace.id, !archivedSectionOpen)}
-                      >
-                        <span
-                          aria-hidden="true"
-                          className={`archived-thread-group__chevron ${archivedSectionOpen ? "archived-thread-group__chevron--open" : ""}`}
-                        >
-                          <ChevronDownIcon />
-                        </span>
-                        <span>Archived</span>
-                        <span className="archived-thread-group__count">{archivedThreads.length}</span>
-                      </button>
-                      {archivedSectionOpen ? (
-                        <div className="session-list session-list--archived">
-                          {archivedThreads.map((thread) => {
-                            const active =
-                              thread.workspaceId === selectedWorkspace?.id && thread.session.id === selectedSession?.id;
-                            return (
-                              <ThreadSessionRow
-                                key={`${thread.workspaceId}:${thread.session.id}`}
-                                active={active}
-                                archived
-                                thread={thread}
-                                onAction={() =>
-                                  onUnarchiveSession({
-                                    workspaceId: thread.workspaceId,
-                                    sessionId: thread.session.id,
-                                  })
-                                }
-                                onSelect={() => onSelectSession({ workspaceId: thread.workspaceId, sessionId: thread.session.id })}
-                              />
-                            );
-                          })}
+                      </div>
+                      {archivedThreads.length > 0 ? (
+                        <div className="archived-thread-group">
+                          <button
+                            aria-expanded={archivedSectionOpen}
+                            className="archived-thread-group__toggle"
+                            type="button"
+                            onClick={() => wsMenu.toggleArchived(rootWorkspace.id, !archivedSectionOpen)}
+                          >
+                            <span
+                              aria-hidden="true"
+                              className={`archived-thread-group__chevron ${archivedSectionOpen ? "archived-thread-group__chevron--open" : ""}`}
+                            >
+                              <ChevronDownIcon />
+                            </span>
+                            <span>Archived</span>
+                            <span className="archived-thread-group__count">{archivedThreads.length}</span>
+                          </button>
+                          {archivedSectionOpen ? (
+                            <div className="session-list session-list--archived">
+                              {archivedThreads.map((thread) => {
+                                const active =
+                                  thread.workspaceId === selectedWorkspace?.id && thread.session.id === selectedSession?.id;
+                                return (
+                                  <ThreadSessionRow
+                                    key={`${thread.workspaceId}:${thread.session.id}`}
+                                    active={active}
+                                    archived
+                                    thread={thread}
+                                    onAction={() =>
+                                      onUnarchiveSession({
+                                        workspaceId: thread.workspaceId,
+                                        sessionId: thread.session.id,
+                                      })
+                                    }
+                                    onSelect={() => onSelectSession({ workspaceId: thread.workspaceId, sessionId: thread.session.id })}
+                                  />
+                                );
+                              })}
+                            </div>
+                          ) : null}
                         </div>
                       ) : null}
-                    </div>
+                    </>
                   ) : null}
                 </section>
               );
