@@ -2,11 +2,14 @@ node_modules/
 .turbo/
 plans/
 dist/
+dist-electron/
 build/
 out/
+release/
 playwright-report/
 test-results/
 .DS_Store
+.history/
 tmp-chat-parity.png
 tmp-latest-design.png
 tmp-sample-design.png

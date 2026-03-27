@@ -17,7 +17,7 @@ const MARKDOWN_COMPONENTS = {
     );
   },
   a: ({ href, children }: { href?: string; children?: React.ReactNode }) => (
-    <a href={href} rel="noreferrer" target="_blank">
+    <a href={href} rel="noreferrer noopener" target="_blank">
       {children}
     </a>
   ),

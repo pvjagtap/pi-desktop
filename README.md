@@ -9,7 +9,7 @@ This repo packages a desktop UI around `@mariozechner/pi-coding-agent`. It is no
 ## Status
 
 - Experimental
-- macOS-first desktop app
+- Cross-platform desktop app (macOS, Windows)
 - Public source repo, not currently configured for npm publication
 
 ## What It Does
@@ -23,6 +23,7 @@ This repo packages a desktop UI around `@mariozechner/pi-coding-agent`. It is no
 
 - Node.js
 - `pnpm`
+- `git` (must be available on PATH; on Windows install [Git for Windows](https://gitforwindows.org/))
 - A working `pi` runtime environment through `@mariozechner/pi-coding-agent`
 - Valid model/provider authentication supported by `pi`
 

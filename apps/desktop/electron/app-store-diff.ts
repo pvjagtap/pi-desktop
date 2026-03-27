@@ -70,7 +70,7 @@ export function getFileDiff(workspacePath: string, filePath: string): Promise<st
               // Untracked file — show content as all-additions diff
               execFile(
                 "git",
-                ["diff", "--no-index", "--", "/dev/null", filePath],
+                ["diff", "--no-index", "--", process.platform === "win32" ? "NUL" : "/dev/null", filePath],
                 { cwd: workspacePath, maxBuffer: 5 * 1024 * 1024 },
                 (_error3, stdout3) => {
                   // git diff --no-index exits 1 when files differ, which is expected

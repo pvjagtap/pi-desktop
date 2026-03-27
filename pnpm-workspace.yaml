@@ -3,6 +3,12 @@ packages:
   - packages/*
   - video
 
+ignoredBuiltDependencies:
+  - esbuild
+  - koffi
+  - protobufjs
+  - sharp
+
 onlyBuiltDependencies:
   - electron
 

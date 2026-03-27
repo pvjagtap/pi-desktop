@@ -123,7 +123,8 @@ async function resolveRepositoryRoot(workspacePath: string): Promise<string> {
 async function inspectGitWorkspace(workspacePath: string): Promise<GitWorkspaceInspection> {
   const canonicalPathValue = await canonicalPath(workspacePath);
   const rawCommonDir = (await runGit(["-C", workspacePath, "rev-parse", "--git-common-dir"])).trim();
-  const commonDirPath = rawCommonDir.startsWith("/")
+  const isAbsolute = rawCommonDir.startsWith("/") || /^[A-Za-z]:[\\/]/.test(rawCommonDir);
+  const commonDirPath = isAbsolute
     ? rawCommonDir
     : resolve(canonicalPathValue, rawCommonDir);
 
