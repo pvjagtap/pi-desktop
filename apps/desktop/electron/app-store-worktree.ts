@@ -97,11 +97,10 @@ export async function startThread(store: AppStoreInternals, input: StartThreadIn
     store.sessionState.loadedTranscriptKeys.add(key);
     store.updateSessionConfig(session.ref, session.config);
     await store.ensureSessionSubscribed(session.ref);
-    if (prompt) {
-      await sendMessageToSession(store, session.ref, prompt, []);
-    }
 
-    return store.refreshState({
+    // Navigate to the new session immediately so the UI is responsive,
+    // then fire the user message in the background.
+    const navigatedState = await store.refreshState({
       selectedWorkspaceId: session.ref.workspaceId,
       selectedSessionId: session.ref.sessionId,
       composerDraft: "",
@@ -109,6 +108,17 @@ export async function startThread(store: AppStoreInternals, input: StartThreadIn
       refreshWorktrees: input.environment === "new-worktree",
       activeView: "threads",
     });
+
+    if (prompt) {
+      // Don't await — let the message run in the background while the UI shows the session.
+      void sendMessageToSession(store, session.ref, prompt, []).then(() =>
+        store.refreshState({}),
+      ).catch(() =>
+        store.refreshState({}),
+      );
+    }
+
+    return navigatedState;
   });
 }
 

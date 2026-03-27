@@ -230,6 +230,29 @@ export class DesktopAppStore implements AppStoreInternals {
     return this.emit();
   }
 
+  async savePromptTemplate(name: string, prompt: string): Promise<DesktopAppState> {
+    await this.initialize();
+    const id = crypto.randomUUID();
+    this.state = {
+      ...this.state,
+      promptTemplates: [...this.state.promptTemplates, { id, name, prompt }],
+      revision: this.state.revision + 1,
+    };
+    await this.persistUiState();
+    return this.emit();
+  }
+
+  async deletePromptTemplate(templateId: string): Promise<DesktopAppState> {
+    await this.initialize();
+    this.state = {
+      ...this.state,
+      promptTemplates: this.state.promptTemplates.filter((t) => t.id !== templateId),
+      revision: this.state.revision + 1,
+    };
+    await this.persistUiState();
+    return this.emit();
+  }
+
   /* ── Runtime / model / provider settings ───────────────── */
 
   async refreshRuntime(workspaceId?: string): Promise<DesktopAppState> {
@@ -333,6 +356,7 @@ export class DesktopAppStore implements AppStoreInternals {
           ...persisted.notificationPreferences,
         },
         lastViewedAtBySession: persisted.lastViewedAtBySession ?? {},
+        promptTemplates: persisted.promptTemplates ?? [],
       };
       await this.migrateLegacyPersistence(persisted);
       this.sessionState.lastViewedAtBySession.clear();
@@ -447,6 +471,7 @@ export class DesktopAppStore implements AppStoreInternals {
       this.sessionState.runningSinceBySession,
       this.sessionState.sessionConfigBySession,
       this.sessionState.lastViewedAtBySession,
+      this.sessionState.tokenUsageBySession,
     );
     const worktreesByWorkspace = buildWorktreeRecords(workspacesSnapshot.workspaces, worktreeEntries);
     const liveWorkspaceIds = new Set(workspaces.map((w) => w.id));
@@ -503,6 +528,14 @@ export class DesktopAppStore implements AppStoreInternals {
       this.updateSessionConfig(sessionRef, snapshot.config);
     }
     await this.ensureSessionSubscribed(sessionRef);
+    // Populate token usage from the live agent session if available.
+    const key = sessionKey(sessionRef);
+    if (!this.sessionState.tokenUsageBySession.has(key)) {
+      const usage = this.driver.getSessionTokenUsage(sessionRef);
+      if (usage) {
+        this.sessionState.tokenUsageBySession.set(key, usage);
+      }
+    }
   }
 
   private async ensureTranscriptLoaded(sessionRef: SessionRef): Promise<void> {
@@ -574,6 +607,12 @@ export class DesktopAppStore implements AppStoreInternals {
       case "sessionUpdated":
       case "runCompleted":
         this.updateSessionConfig(event.sessionRef, event.snapshot.config);
+        if (event.type === "runCompleted") {
+          const usage = this.driver.getSessionTokenUsage(event.sessionRef);
+          if (usage) {
+            this.sessionState.tokenUsageBySession.set(key, usage);
+          }
+        }
         break;
       case "runFailed":
         this.state = {
@@ -614,6 +653,7 @@ export class DesktopAppStore implements AppStoreInternals {
       this.sessionState.transcriptCache,
       this.sessionState.runningSinceBySession,
       this.sessionState.lastViewedAtBySession,
+      this.sessionState.tokenUsageBySession,
     );
     this.markSessionViewedIfVisible(event.sessionRef);
     this.state = {
@@ -681,6 +721,7 @@ export class DesktopAppStore implements AppStoreInternals {
       composerDraftsBySession: mapToRecord(this.sessionState.composerDraftsBySession),
       notificationPreferences: this.state.notificationPreferences,
       lastViewedAtBySession: mapToRecord(this.sessionState.lastViewedAtBySession),
+      promptTemplates: this.state.promptTemplates.length > 0 ? this.state.promptTemplates : undefined,
     };
 
     await writePersistedUiState(this.uiStateFilePath, payload);

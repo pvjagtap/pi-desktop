@@ -67,6 +67,7 @@ interface ManagedSessionRecord {
   preview: string | undefined;
   config: SessionConfig | undefined;
   runningRunId: string | undefined;
+  pendingFollowUp: SessionMessageInput | undefined;
   closed: boolean;
   listeners: Set<SessionEventListener>;
   eventQueue: Promise<void>;
@@ -263,7 +264,8 @@ export class SessionSupervisor {
       throw new Error(`Session ${sessionKey(sessionRef)} is not active.`);
     }
     if (record.session.isStreaming) {
-      throw new Error("Session is already streaming. TODO: expose steer/follow-up queueing on the driver API.");
+      record.pendingFollowUp = input;
+      return;
     }
 
     const runId = crypto.randomUUID();
@@ -436,6 +438,26 @@ export class SessionSupervisor {
     });
   }
 
+  getSessionTokenUsage(sessionRef: SessionRef): { inputTokens: number; outputTokens: number; cacheReadTokens: number; cacheWriteTokens: number; totalTokens: number; cost: number } | undefined {
+    const record = this.records.get(sessionKey(sessionRef));
+    if (!record?.session) {
+      return undefined;
+    }
+    try {
+      const stats = record.session.getSessionStats();
+      return {
+        inputTokens: stats.tokens.input,
+        outputTokens: stats.tokens.output,
+        cacheReadTokens: stats.tokens.cacheRead,
+        cacheWriteTokens: stats.tokens.cacheWrite,
+        totalTokens: stats.tokens.total,
+        cost: stats.cost,
+      };
+    } catch {
+      return undefined;
+    }
+  }
+
   private async ensureRecord(sessionRef: SessionRef): Promise<ManagedSessionRecord> {
     const key = sessionKey(sessionRef);
     const existing = this.records.get(key);
@@ -503,6 +525,7 @@ export class SessionSupervisor {
       preview: undefined,
       config: deriveSessionConfig(session.sessionManager),
       runningRunId: undefined,
+      pendingFollowUp: undefined,
       closed: false,
       listeners: new Set<SessionEventListener>(),
       eventQueue: Promise.resolve(),
@@ -541,6 +564,14 @@ export class SessionSupervisor {
       await this.persistSnapshot(record);
       for (const next of mapped) {
         await this.emit(record, next);
+      }
+      // If a follow-up was queued while streaming, send it now that the run finished
+      if (event.type === "agent_end" && record.pendingFollowUp) {
+        const followUp = record.pendingFollowUp;
+        record.pendingFollowUp = undefined;
+        try {
+          await this.sendUserMessage(record.ref, followUp);
+        } catch { /* follow-up send failures are surfaced via events */ }
       }
     });
     record.eventQueue.catch(() => {});

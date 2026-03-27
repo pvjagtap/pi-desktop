@@ -106,6 +106,10 @@ export class PiSdkDriver implements SessionDriver {
   getTranscript(sessionRef: SessionRef) {
     return this.supervisor.getTranscript(sessionRef);
   }
+
+  getSessionTokenUsage(sessionRef: SessionRef) {
+    return this.supervisor.getSessionTokenUsage(sessionRef);
+  }
 }
 
 export function createPiSdkDriver(options?: PiSdkDriverConfig): PiSdkDriver {

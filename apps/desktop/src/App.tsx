@@ -121,8 +121,10 @@ export default function App() {
   const lastTranscriptMarkerRef = useRef("");
   const pinnedToBottomRef = useRef(true);
   const previousActiveViewRef = useRef<AppView | null>(null);
+  const startingThreadRef = useRef(false);
   const [showJumpToLatest, setShowJumpToLatest] = useState(false);
   const [showDiffPanel, setShowDiffPanel] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const threadSearch = useThreadSearch(timelinePaneRef);
   const api = window.piApp;
 
@@ -315,6 +317,12 @@ export default function App() {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "d" && !event.shiftKey) {
         event.preventDefault();
         setShowDiffPanel((prev) => !prev);
+        return;
+      }
+      // Cmd+B toggles sidebar
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "b" && !event.shiftKey) {
+        event.preventDefault();
+        setSidebarCollapsed((prev) => !prev);
         return;
       }
       const command = getDesktopCommandFromShortcut({
@@ -644,9 +652,10 @@ export default function App() {
   };
 
   const handleStartThread = () => {
-    if (!newThreadRootWorkspaceId) {
+    if (!newThreadRootWorkspaceId || !newThreadPrompt.trim() || startingThreadRef.current) {
       return;
     }
+    startingThreadRef.current = true;
     void updateSnapshot(api, setSnapshot, () =>
       api.startThread({
         rootWorkspaceId: newThreadRootWorkspaceId,
@@ -656,6 +665,8 @@ export default function App() {
     ).then(() => {
       setNewThreadPrompt("");
       setNewThreadEnvironment("local");
+    }).finally(() => {
+      startingThreadRef.current = false;
     });
   };
 
@@ -794,6 +805,7 @@ export default function App() {
             void updateSnapshot(api, setSnapshot, () => api.refreshRuntime(skillsWorkspace.id));
           }}
           onToggleSkill={handleToggleSkill}
+          onReadSkillSource={(workspaceId, filePath) => api.readSkillSource(workspaceId, filePath)}
           onTrySkill={(skill) =>
             handleTrySkill(
               skill.filePath
@@ -826,6 +838,8 @@ export default function App() {
         onArchiveSession={handleArchiveSession}
         onSelectSession={handleSelectSession}
         onUnarchiveSession={handleUnarchiveSession}
+        collapsed={sidebarCollapsed}
+        onToggleCollapse={() => setSidebarCollapsed((prev) => !prev)}
       />
 
       <main className={`main ${showDiffPanel ? "main--with-diff" : ""}`}>
@@ -859,10 +873,17 @@ export default function App() {
               }
               environment={newThreadEnvironment}
               prompt={newThreadPrompt}
+              promptTemplates={snapshot.promptTemplates}
               onChangePrompt={setNewThreadPrompt}
               onSelectEnvironment={setNewThreadEnvironment}
               onSelectWorkspace={setNewThreadRootWorkspaceId}
               onSubmit={handleStartThread}
+              onSaveTemplate={(name, prompt) => {
+                void updateSnapshot(api, setSnapshot, () => api.savePromptTemplate(name, prompt));
+              }}
+              onDeleteTemplate={(templateId) => {
+                void updateSnapshot(api, setSnapshot, () => api.deletePromptTemplate(templateId));
+              }}
             />
           ) : (
             <section className="canvas canvas--empty">

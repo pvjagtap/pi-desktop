@@ -35,14 +35,18 @@ const SUPPORTED_IMAGE_TYPES = [
 ] as const;
 
 function createWindow(): BrowserWindow {
+  const isMac = process.platform === "darwin";
+  const resolvedTheme = themeManager.getResolvedTheme();
+  const overlayColors = titleBarOverlayColors(resolvedTheme);
   const window = new BrowserWindow({
     width: 1480,
     height: 980,
     minWidth: 1200,
     minHeight: 760,
-    backgroundColor: "#f3f4f8",
-    titleBarStyle: "hiddenInset",
-    trafficLightPosition: { x: 18, y: 18 },
+    backgroundColor: resolvedTheme === "dark" ? "#1e1f22" : "#f3f4f8",
+    ...(isMac
+      ? { titleBarStyle: "hiddenInset" as const, trafficLightPosition: { x: 18, y: 18 } }
+      : { titleBarStyle: "hidden" as const, titleBarOverlay: { height: 38, ...overlayColors } }),
     show: false,
     webPreferences: {
       preload: path.join(app.getAppPath(), "dist-electron", "preload.js"),
@@ -50,6 +54,25 @@ function createWindow(): BrowserWindow {
       nodeIntegration: false,
       sandbox: true,
     },
+  });
+
+  // Security: prevent navigation away from the app
+  window.webContents.on("will-navigate", (event, url) => {
+    if (isDev && url.startsWith(process.env.VITE_DEV_SERVER_URL as string)) {
+      return;
+    }
+    event.preventDefault();
+  });
+
+  // Security: prevent new window creation; open external links in the OS browser
+  window.webContents.setWindowOpenHandler(({ url }) => {
+    try {
+      const parsed = new URL(url);
+      if (["http:", "https:"].includes(parsed.protocol)) {
+        void shell.openExternal(url);
+      }
+    } catch { /* ignore malformed URLs */ }
+    return { action: "deny" };
   });
 
   window.once("ready-to-show", () => window.show());
@@ -199,6 +222,12 @@ app.whenReady().then(async () => {
   ipcMain.handle(desktopIpc.setNotificationPreferences, (_event, preferences) =>
     store.setNotificationPreferences(preferences),
   );
+  ipcMain.handle(desktopIpc.savePromptTemplate, (_event, name: string, prompt: string) =>
+    store.savePromptTemplate(name, prompt),
+  );
+  ipcMain.handle(desktopIpc.deletePromptTemplate, (_event, templateId: string) =>
+    store.deletePromptTemplate(templateId),
+  );
   ipcMain.handle(desktopIpc.createSession, (_event, input: CreateSessionInput) =>
     store.createSession(input),
   );
@@ -209,6 +238,14 @@ app.whenReady().then(async () => {
       throw new Error(`Unknown skill: ${filePath}`);
     }
     await shell.openPath(path.dirname(resolved));
+  });
+  ipcMain.handle(desktopIpc.readSkillSource, async (_event, workspaceId: string, filePath: string) => {
+    const resolved = store.getSkillFilePath(workspaceId, filePath);
+    if (!resolved) {
+      throw new Error(`Unknown skill: ${filePath}`);
+    }
+    const content = await readFile(resolved, "utf8");
+    return content;
   });
   ipcMain.handle(desktopIpc.cancelCurrentRun, () => store.cancelCurrentRun());
   ipcMain.handle(desktopIpc.pickComposerImages, async () => {
@@ -337,6 +374,12 @@ function mimeTypeForPath(filePath: string): string {
     return supported.mimeType;
   }
   return "application/octet-stream";
+}
+
+function titleBarOverlayColors(theme: "light" | "dark"): { color: string; symbolColor: string } {
+  return theme === "dark"
+    ? { color: "#1e1f22", symbolColor: "#9ca3af" }
+    : { color: "#f3f4f8", symbolColor: "#6b7280" };
 }
 
 function createRuntimeLoginCallbacks() {

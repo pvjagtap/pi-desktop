@@ -5,6 +5,7 @@ import type { SessionAttachment, SessionConfig, SessionRef } from "@pi-gui/sessi
 import type {
   ComposerImageAttachment,
   SessionRecord,
+  TokenUsage,
   TranscriptMessage,
   WorktreeRecord,
   WorkspaceRecord,
@@ -25,6 +26,7 @@ export function buildWorkspaceRecords(
   runningSinceBySession: Map<string, string>,
   sessionConfigBySession: Map<string, SessionConfig>,
   lastViewedAtBySession: Map<string, string>,
+  tokenUsageBySession: Map<string, TokenUsage>,
 ): WorkspaceRecord[] {
   const linkedWorktreesByPath = new Map(
     worktrees
@@ -58,6 +60,7 @@ export function buildWorkspaceRecords(
             runningSinceBySession,
             sessionConfigBySession,
             lastViewedAtBySession,
+            tokenUsageBySession,
           ),
         ),
     };
@@ -115,6 +118,7 @@ function buildSessionRecord(
   runningSinceBySession: Map<string, string>,
   sessionConfigBySession: Map<string, SessionConfig>,
   lastViewedAtBySession: Map<string, string>,
+  tokenUsageBySession: Map<string, TokenUsage>,
 ): SessionRecord {
   const key = sessionKey(session.sessionRef);
   const transcript = transcriptCache.get(key) ?? [];
@@ -132,6 +136,7 @@ function buildSessionRecord(
     hasUnseenUpdate: session.status !== "running" && Boolean(lastViewedAt && session.updatedAt > lastViewedAt),
     config: sessionConfigBySession.get(key),
     transcript: transcript.map(cloneTranscriptMessage),
+    tokenUsage: tokenUsageBySession.get(key),
   };
 }
 

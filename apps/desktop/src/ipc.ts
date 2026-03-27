@@ -43,6 +43,8 @@ export const desktopIpc = {
   setScopedModelPatterns: "pi-gui:set-scoped-model-patterns",
   setSkillEnabled: "pi-gui:set-skill-enabled",
   setNotificationPreferences: "pi-gui:set-notification-preferences",
+  savePromptTemplate: "pi-gui:save-prompt-template",
+  deletePromptTemplate: "pi-gui:delete-prompt-template",
   pickComposerImages: "pi-gui:pick-composer-images",
   addComposerImages: "pi-gui:add-composer-images",
   removeComposerImage: "pi-gui:remove-composer-image",
@@ -53,6 +55,7 @@ export const desktopIpc = {
   getChangedFiles: "pi-gui:get-changed-files",
   getFileDiff: "pi-gui:get-file-diff",
   stageFile: "pi-gui:stage-file",
+  readSkillSource: "pi-gui:read-skill-source",
   getThemeMode: "pi-gui:get-theme-mode",
   getResolvedTheme: "pi-gui:get-resolved-theme",
   setThemeMode: "pi-gui:set-theme-mode",
@@ -143,6 +146,8 @@ export interface PiDesktopApi {
   setScopedModelPatterns(workspaceId: string, patterns: readonly string[]): Promise<DesktopAppState>;
   setSkillEnabled(workspaceId: string, filePath: string, enabled: boolean): Promise<DesktopAppState>;
   setNotificationPreferences(preferences: Partial<NotificationPreferences>): Promise<DesktopAppState>;
+  savePromptTemplate(name: string, prompt: string): Promise<DesktopAppState>;
+  deletePromptTemplate(templateId: string): Promise<DesktopAppState>;
   pickComposerImages(): Promise<DesktopAppState>;
   addComposerImages(attachments: readonly ComposerImageAttachment[]): Promise<DesktopAppState>;
   removeComposerImage(attachmentId: string): Promise<DesktopAppState>;
@@ -152,6 +157,7 @@ export interface PiDesktopApi {
   getChangedFiles(workspaceId: string): Promise<{ path: string; status: "added" | "modified" | "deleted" | "untracked" }[]>;
   getFileDiff(workspaceId: string, filePath: string): Promise<string>;
   stageFile(workspaceId: string, filePath: string): Promise<void>;
+  readSkillSource(workspaceId: string, filePath: string): Promise<string>;
   toggleWindowMaximize(): Promise<void>;
   openExternal(url: string): Promise<void>;
   getThemeMode(): Promise<"system" | "light" | "dark">;

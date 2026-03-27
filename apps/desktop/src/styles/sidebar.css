@@ -2,7 +2,7 @@
   width: 100%;
   height: 100%;
   display: grid;
-  grid-template-columns: 292px minmax(0, 1fr);
+  grid-template-columns: auto minmax(0, 1fr);
   gap: 0;
   padding: 0;
 }
@@ -18,11 +18,24 @@
 }
 
 .sidebar {
+  width: 292px;
   display: grid;
-  grid-template-rows: auto 1fr auto;
+  grid-template-rows: auto 1fr;
   overflow: hidden;
   background: #f6f7fa;
   border-right: 1px solid #dde1ea;
+}
+
+.sidebar--collapsed {
+  width: 48px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 54px;
+}
+
+.platform-win32 .sidebar--collapsed {
+  padding-top: 38px;
 }
 
 .sidebar__top,
@@ -33,6 +46,10 @@
 
 .sidebar__top {
   padding-top: 54px;
+}
+
+.platform-win32 .sidebar__top {
+  padding-top: 38px;
 }
 
 .sidebar__nav {
@@ -87,6 +104,62 @@
 .icon-button:disabled {
   opacity: 0.45;
   cursor: default;
+}
+
+.sidebar__top-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sidebar__top-row .sidebar__new {
+  flex: 1;
+  min-width: 0;
+}
+
+.sidebar__toggle-button {
+  -webkit-app-region: no-drag;
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  color: var(--muted-strong);
+  border: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+.sidebar__toggle-button:hover {
+  background: #eef1f6;
+}
+
+.sidebar__toggle-button svg {
+  width: 16px;
+  height: 16px;
+}
+
+.sidebar__expand-button {
+  -webkit-app-region: no-drag;
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  color: var(--muted-strong);
+  border: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+.sidebar__expand-button:hover {
+  background: #eef1f6;
+}
+
+.sidebar__expand-button svg {
+  width: 18px;
+  height: 18px;
 }
 
 .sidebar__section {
@@ -643,7 +716,9 @@
 :root.dark .workspace-row:hover,
 :root.dark .session-row:hover,
 :root.dark .icon-button:hover:not(:disabled),
-:root.dark .sidebar__settings:hover {
+:root.dark .sidebar__settings:hover,
+:root.dark .sidebar__toggle-button:hover,
+:root.dark .sidebar__expand-button:hover {
   background: rgba(255, 255, 255, 0.06);
   border-color: rgba(255, 255, 255, 0.08);
 }

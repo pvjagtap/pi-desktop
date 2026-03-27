@@ -1,6 +1,6 @@
 import { sessionKey } from "@pi-gui/pi-sdk-driver";
 import type { SessionDriverEvent } from "@pi-gui/session-driver";
-import type { DesktopAppState, SessionRecord, TranscriptMessage } from "../src/desktop-state";
+import type { DesktopAppState, SessionRecord, TokenUsage, TranscriptMessage } from "../src/desktop-state";
 import { cloneTranscriptMessage, previewFromTranscript } from "./app-store-utils";
 
 export function applySessionEventState(
@@ -9,11 +9,13 @@ export function applySessionEventState(
   transcriptCache: Map<string, TranscriptMessage[]>,
   runningSinceBySession: Map<string, string>,
   lastViewedAtBySession: Map<string, string>,
+  tokenUsageBySession: Map<string, TokenUsage>,
 ): DesktopAppState {
   const key = sessionKey(event.sessionRef);
   const transcript = (transcriptCache.get(key) ?? []).map(cloneTranscriptMessage);
   const preview = previewFromTranscript(transcript);
   const lastViewedAt = lastViewedAtBySession.get(key);
+  const tokenUsage = tokenUsageBySession.get(key);
 
   return {
     ...state,
@@ -30,6 +32,7 @@ export function applySessionEventState(
                     preview,
                     runningSinceBySession.get(key),
                     lastViewedAt,
+                    tokenUsage,
                   )
                 : session,
             ),
@@ -47,6 +50,7 @@ function updateSessionRecord(
   preview: string | undefined,
   runningSince: string | undefined,
   lastViewedAt: string | undefined,
+  tokenUsage: TokenUsage | undefined,
 ): SessionRecord {
   const snapshot = snapshotForEvent(event);
   const updatedAt = snapshot?.updatedAt ?? event.timestamp;
@@ -64,6 +68,7 @@ function updateSessionRecord(
     hasUnseenUpdate: nextStatus !== "running" && Boolean(lastViewedAt && updatedAt > lastViewedAt),
     config: snapshot?.config ?? session.config,
     transcript,
+    tokenUsage: tokenUsage ?? session.tokenUsage,
   };
 }
 

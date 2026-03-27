@@ -1,5 +1,5 @@
 import type { SessionConfig } from "@pi-gui/session-driver";
-import type { ComposerImageAttachment, TranscriptMessage } from "../src/desktop-state";
+import type { ComposerImageAttachment, TokenUsage, TranscriptMessage } from "../src/desktop-state";
 import type { RunMetrics } from "./app-store-timeline";
 
 /**
@@ -19,6 +19,7 @@ export class SessionStateMap {
   readonly activeAssistantMessageBySession = new Map<string, string>();
   readonly runningSinceBySession = new Map<string, string>();
   readonly runMetricsBySession = new Map<string, RunMetrics>();
+  readonly tokenUsageBySession = new Map<string, TokenUsage>();
   readonly activeWorkingActivityBySession = new Map<string, string>();
   readonly loadedTranscriptKeys = new Set<string>();
 
@@ -41,6 +42,7 @@ export class SessionStateMap {
     this.activeAssistantMessageBySession.delete(key);
     this.runningSinceBySession.delete(key);
     this.runMetricsBySession.delete(key);
+    this.tokenUsageBySession.delete(key);
     this.activeWorkingActivityBySession.delete(key);
     this.composerDraftsBySession.delete(key);
     this.composerAttachmentsBySession.delete(key);

@@ -1,6 +1,6 @@
 import { useEffect, useRef, type KeyboardEvent } from "react";
 import type { RuntimeSnapshot } from "@pi-gui/session-driver/runtime-types";
-import type { NewThreadEnvironment, WorkspaceRecord } from "./desktop-state";
+import type { NewThreadEnvironment, PromptTemplate, WorkspaceRecord } from "./desktop-state";
 import { ArrowUpIcon, ModelIcon, ReasoningIcon } from "./icons";
 
 interface NewThreadViewProps {
@@ -9,10 +9,13 @@ interface NewThreadViewProps {
   readonly runtime?: RuntimeSnapshot;
   readonly environment: NewThreadEnvironment;
   readonly prompt: string;
+  readonly promptTemplates?: readonly PromptTemplate[];
   readonly onChangePrompt: (prompt: string) => void;
   readonly onSelectEnvironment: (environment: NewThreadEnvironment) => void;
   readonly onSelectWorkspace: (workspaceId: string) => void;
   readonly onSubmit: () => void;
+  readonly onSaveTemplate?: (name: string, prompt: string) => void;
+  readonly onDeleteTemplate?: (templateId: string) => void;
 }
 
 export function NewThreadView({
@@ -21,10 +24,13 @@ export function NewThreadView({
   runtime,
   environment,
   prompt,
+  promptTemplates,
   onChangePrompt,
   onSelectEnvironment,
   onSelectWorkspace,
   onSubmit,
+  onSaveTemplate,
+  onDeleteTemplate,
 }: NewThreadViewProps) {
   const composerRef = useRef<HTMLTextAreaElement | null>(null);
   const workspace = workspaces.find((entry) => entry.id === selectedWorkspaceId) ?? workspaces[0];
@@ -41,7 +47,9 @@ export function NewThreadView({
     }
 
     event.preventDefault();
-    onSubmit();
+    if (prompt.trim()) {
+      onSubmit();
+    }
   };
 
   useEffect(() => {
@@ -83,6 +91,32 @@ export function NewThreadView({
         </div>
 
         <div className="new-thread__composer">
+          {promptTemplates && promptTemplates.length > 0 ? (
+            <div className="new-thread__templates">
+              {promptTemplates.map((template) => (
+                <span key={template.id} className="new-thread__template-chip">
+                  <button
+                    className="new-thread__template-button"
+                    type="button"
+                    title={template.prompt}
+                    onClick={() => onChangePrompt(template.prompt)}
+                  >
+                    {template.name}
+                  </button>
+                  {onDeleteTemplate ? (
+                    <button
+                      className="new-thread__template-remove"
+                      type="button"
+                      aria-label={`Remove template ${template.name}`}
+                      onClick={() => onDeleteTemplate(template.id)}
+                    >
+                      ×
+                    </button>
+                  ) : null}
+                </span>
+              ))}
+            </div>
+          ) : null}
           <textarea
             aria-label="New thread prompt"
             className="new-thread__textarea"
@@ -121,6 +155,18 @@ export function NewThreadView({
                   <ReasoningIcon />
                   <span>{thinkingLabel}</span>
                 </span>
+                {onSaveTemplate && prompt.trim() ? (
+                  <button
+                    className="new-thread__save-template"
+                    type="button"
+                    onClick={() => {
+                      const name = prompt.trim().slice(0, 40) || "Template";
+                      onSaveTemplate(name, prompt.trim());
+                    }}
+                  >
+                    Save as template
+                  </button>
+                ) : null}
               </div>
             </div>
 
@@ -128,6 +174,7 @@ export function NewThreadView({
               aria-label="Start thread"
               className="button button--primary button--cta-icon"
               type="button"
+              disabled={!prompt.trim()}
               onClick={onSubmit}
             >
               <ArrowUpIcon />

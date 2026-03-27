@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import type { RuntimeSkillRecord, RuntimeSnapshot } from "@pi-gui/session-driver/runtime-types";
 import type { WorkspaceRecord } from "./desktop-state";
 import { RefreshIcon } from "./icons";
@@ -11,6 +11,7 @@ interface SkillsViewProps {
   readonly onOpenSkillFolder: (filePath: string) => void;
   readonly onToggleSkill: (filePath: string, enabled: boolean) => void;
   readonly onTrySkill: (skill: RuntimeSkillRecord) => void;
+  readonly onReadSkillSource?: (workspaceId: string, filePath: string) => Promise<string>;
 }
 
 export function SkillsView({
@@ -20,9 +21,13 @@ export function SkillsView({
   onOpenSkillFolder,
   onToggleSkill,
   onTrySkill,
+  onReadSkillSource,
 }: SkillsViewProps) {
   const [query, setQuery] = useState("");
   const [selectedSkillPath, setSelectedSkillPath] = useState<string | undefined>();
+  const [sourceContent, setSourceContent] = useState<string | undefined>();
+  const [showSource, setShowSource] = useState(false);
+  const [sourceLoading, setSourceLoading] = useState(false);
   const skills = runtime?.skills ?? [];
   const filteredSkills = useMemo(() => {
     const normalized = query.trim().toLowerCase();
@@ -38,6 +43,25 @@ export function SkillsView({
   }, [query, skills]);
   const selectedSkill =
     filteredSkills.find((skill) => skill.filePath === selectedSkillPath) ?? filteredSkills[0];
+
+  const handleViewSource = useCallback(async () => {
+    if (!workspace || !selectedSkill?.filePath || !onReadSkillSource) return;
+    if (showSource) {
+      setShowSource(false);
+      return;
+    }
+    setSourceLoading(true);
+    try {
+      const content = await onReadSkillSource(workspace.id, selectedSkill.filePath);
+      setSourceContent(content);
+      setShowSource(true);
+    } catch {
+      setSourceContent("Failed to load skill source.");
+      setShowSource(true);
+    } finally {
+      setSourceLoading(false);
+    }
+  }, [workspace, selectedSkill, onReadSkillSource, showSource]);
 
   if (!workspace) {
     return (
@@ -112,6 +136,8 @@ export function SkillsView({
                   type="button"
                   onClick={() => {
                     setSelectedSkillPath(skill.filePath);
+                    setShowSource(false);
+                    setSourceContent(undefined);
                   }}
                 >
                   <span className="skill-card__title-row">
@@ -158,6 +184,16 @@ export function SkillsView({
                   <button className="button button--secondary" type="button" onClick={() => onOpenSkillFolder(selectedSkill.filePath)}>
                     Open folder
                   </button>
+                  {onReadSkillSource && selectedSkill.filePath ? (
+                    <button
+                      className="button button--secondary"
+                      type="button"
+                      disabled={sourceLoading}
+                      onClick={handleViewSource}
+                    >
+                      {showSource ? "Hide source" : sourceLoading ? "Loading…" : "View source"}
+                    </button>
+                  ) : null}
                   <button
                     className="button button--secondary"
                     type="button"
@@ -169,6 +205,11 @@ export function SkillsView({
                     Try
                   </button>
                 </div>
+                {showSource && sourceContent !== undefined ? (
+                  <div className="skill-detail__source">
+                    <pre className="skill-detail__source-code">{sourceContent}</pre>
+                  </div>
+                ) : null}
               </>
             ) : (
               <SkillsEmptyState message="Refresh runtime discovery to load workspace and user-level skills." />

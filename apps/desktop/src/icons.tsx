@@ -210,3 +210,12 @@ export function DiffIcon() {
     </Icon>
   );
 }
+
+export function SidebarToggleIcon() {
+  return (
+    <Icon>
+      <rect x="3" y="4" width="14" height="12" rx="2" stroke="currentColor" strokeWidth="1.3" fill="none" />
+      <line x1="8" y1="4" x2="8" y2="16" stroke="currentColor" strokeWidth="1.3" />
+    </Icon>
+  );
+}

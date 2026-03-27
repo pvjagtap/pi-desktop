@@ -255,6 +255,27 @@ export function ComposerPanel({
               </button>
             </div>
           </div>
+          {selectedSession.tokenUsage && selectedSession.tokenUsage.totalTokens > 0 ? (
+            <div className="composer__token-usage">
+              <span className="token-usage__item">
+                <span className="token-usage__label">In</span> {formatTokenCount(selectedSession.tokenUsage.inputTokens)}
+              </span>
+              <span className="token-usage__item">
+                <span className="token-usage__label">Out</span> {formatTokenCount(selectedSession.tokenUsage.outputTokens)}
+              </span>
+              {selectedSession.tokenUsage.cacheReadTokens > 0 ? (
+                <span className="token-usage__item">
+                  <span className="token-usage__label">Cache</span> {formatTokenCount(selectedSession.tokenUsage.cacheReadTokens)}
+                </span>
+              ) : null}
+              <span className="token-usage__item">
+                <span className="token-usage__label">Total</span> {formatTokenCount(selectedSession.tokenUsage.totalTokens)}
+              </span>
+              <span className="token-usage__item token-usage__cost">
+                ${selectedSession.tokenUsage.cost.toFixed(4)}
+              </span>
+            </div>
+          ) : null}
         </div>
       </div>
     </footer>
@@ -282,4 +303,14 @@ function SlashCommandIcon({ command }: { readonly command: ComposerSlashCommand 
     default:
       return <SparkIcon />;
   }
+}
+
+function formatTokenCount(count: number): string {
+  if (count >= 1_000_000) {
+    return `${(count / 1_000_000).toFixed(1)}M`;
+  }
+  if (count >= 1_000) {
+    return `${(count / 1_000).toFixed(1)}k`;
+  }
+  return String(count);
 }

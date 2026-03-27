@@ -23,6 +23,15 @@ export interface ComposerImageAttachment {
   readonly data: string;
 }
 
+export interface TokenUsage {
+  readonly inputTokens: number;
+  readonly outputTokens: number;
+  readonly cacheReadTokens: number;
+  readonly cacheWriteTokens: number;
+  readonly totalTokens: number;
+  readonly cost: number;
+}
+
 export interface SessionRecord {
   readonly id: string;
   readonly title: string;
@@ -35,6 +44,7 @@ export interface SessionRecord {
   readonly hasUnseenUpdate: boolean;
   readonly config?: SessionConfig;
   readonly transcript: readonly TranscriptMessage[];
+  readonly tokenUsage?: TokenUsage;
 }
 
 export interface WorktreeRecord {
@@ -76,6 +86,12 @@ export interface RemoveWorktreeInput {
   readonly worktreeId: string;
 }
 
+export interface PromptTemplate {
+  readonly id: string;
+  readonly name: string;
+  readonly prompt: string;
+}
+
 export interface DesktopAppState {
   readonly workspaces: readonly WorkspaceRecord[];
   readonly worktreesByWorkspace: Readonly<Record<string, readonly WorktreeRecord[]>>;
@@ -87,6 +103,7 @@ export interface DesktopAppState {
   readonly runtimeByWorkspace: Readonly<Record<string, RuntimeSnapshot>>;
   readonly notificationPreferences: NotificationPreferences;
   readonly lastViewedAtBySession: Readonly<Record<string, string>>;
+  readonly promptTemplates: readonly PromptTemplate[];
   readonly revision: number;
   readonly lastError?: string;
 }
@@ -117,6 +134,7 @@ export function createEmptyDesktopAppState(): DesktopAppState {
       attentionNeeded: true,
     },
     lastViewedAtBySession: {},
+    promptTemplates: [],
     revision: 0,
   };
 }

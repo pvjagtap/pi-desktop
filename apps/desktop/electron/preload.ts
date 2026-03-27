@@ -90,6 +90,10 @@ contextBridge.exposeInMainWorld("piApp", {
     ipcRenderer.invoke(desktopIpc.setSkillEnabled, workspaceId, filePath, enabled) as Promise<DesktopAppState>,
   setNotificationPreferences: (preferences: Partial<NotificationPreferences>) =>
     ipcRenderer.invoke(desktopIpc.setNotificationPreferences, preferences) as Promise<DesktopAppState>,
+  savePromptTemplate: (name: string, prompt: string) =>
+    ipcRenderer.invoke(desktopIpc.savePromptTemplate, name, prompt) as Promise<DesktopAppState>,
+  deletePromptTemplate: (templateId: string) =>
+    ipcRenderer.invoke(desktopIpc.deletePromptTemplate, templateId) as Promise<DesktopAppState>,
   pickComposerImages: () => ipcRenderer.invoke(desktopIpc.pickComposerImages) as Promise<DesktopAppState>,
   addComposerImages: (attachments: readonly ComposerImageAttachment[]) =>
     ipcRenderer.invoke(desktopIpc.addComposerImages, attachments) as Promise<DesktopAppState>,
@@ -107,6 +111,8 @@ contextBridge.exposeInMainWorld("piApp", {
     ipcRenderer.invoke(desktopIpc.getFileDiff, workspaceId, filePath) as Promise<string>,
   stageFile: (workspaceId: string, filePath: string) =>
     ipcRenderer.invoke(desktopIpc.stageFile, workspaceId, filePath) as Promise<void>,
+  readSkillSource: (workspaceId: string, filePath: string) =>
+    ipcRenderer.invoke(desktopIpc.readSkillSource, workspaceId, filePath) as Promise<string>,
   toggleWindowMaximize: () => ipcRenderer.invoke(desktopIpc.toggleWindowMaximize) as Promise<void>,
   openExternal: (url: string) => ipcRenderer.invoke(desktopIpc.openExternal, url) as Promise<void>,
   getThemeMode: () => ipcRenderer.invoke(desktopIpc.getThemeMode) as Promise<"system" | "light" | "dark">,

@@ -1,5 +1,5 @@
 import type { AppView, SessionRecord, WorkspaceRecord, WorktreeRecord } from "./desktop-state";
-import { ArchiveIcon, ChevronDownIcon, FolderIcon, PlusIcon, RestoreIcon, SettingsIcon, SkillIcon, WorktreeIcon } from "./icons";
+import { ArchiveIcon, ChevronDownIcon, FolderIcon, PlusIcon, RestoreIcon, SettingsIcon, SidebarToggleIcon, SkillIcon, WorktreeIcon } from "./icons";
 import type { PiDesktopApi } from "./ipc";
 import { formatRelativeTime } from "./string-utils";
 import type { WorkspaceMenuState } from "./hooks/use-workspace-menu";
@@ -29,6 +29,8 @@ interface SidebarProps {
   readonly onArchiveSession: (rootWorkspaceId: string, target: { workspaceId: string; sessionId: string }) => void;
   readonly onSelectSession: (target: { workspaceId: string; sessionId: string }) => void;
   readonly onUnarchiveSession: (target: { workspaceId: string; sessionId: string }) => void;
+  readonly collapsed: boolean;
+  readonly onToggleCollapse: () => void;
 }
 
 export function Sidebar(props: SidebarProps) {
@@ -50,20 +52,47 @@ export function Sidebar(props: SidebarProps) {
     onArchiveSession,
     onSelectSession,
     onUnarchiveSession,
+    collapsed,
+    onToggleCollapse,
   } = props;
+
+  if (collapsed) {
+    return (
+      <aside className="sidebar sidebar--collapsed">
+        <button
+          aria-label="Expand sidebar"
+          className="sidebar__expand-button"
+          type="button"
+          onClick={onToggleCollapse}
+        >
+          <SidebarToggleIcon />
+        </button>
+      </aside>
+    );
+  }
 
   return (
     <aside className="sidebar">
       <div className="sidebar__top">
-        <button
-          className="sidebar__new"
-          type="button"
-          disabled={!selectedWorkspace}
-          onClick={onNewThread}
-        >
-          <PlusIcon />
-          <span>New thread</span>
-        </button>
+        <div className="sidebar__top-row">
+          <button
+            className="sidebar__new"
+            type="button"
+            disabled={!selectedWorkspace}
+            onClick={onNewThread}
+          >
+            <PlusIcon />
+            <span>New thread</span>
+          </button>
+          <button
+            aria-label="Collapse sidebar"
+            className="sidebar__toggle-button"
+            type="button"
+            onClick={onToggleCollapse}
+          >
+            <SidebarToggleIcon />
+          </button>
+        </div>
 
         <div className="sidebar__nav">
           <button
@@ -175,7 +204,7 @@ export function Sidebar(props: SidebarProps) {
                               })
                             }
                           >
-                            Open in Finder
+                            {window.piApp?.platform === "darwin" ? "Open in Finder" : "Open in Explorer"}
                           </button>
                           {linkedWorktree ? (
                             <button

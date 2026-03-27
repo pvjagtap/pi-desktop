@@ -177,9 +177,16 @@ export function applyTimelineEvent(
       clearRunState(transcript, key, event.sessionRef, state);
       transcript.push(makeActivityItem("Stopped", { metadata: relativeDetail(event.timestamp) }));
       break;
-    case "hostUiRequest":
-      transcript.push(makeActivityItem(hostUiLabel(event), { metadata: relativeDetail(event.timestamp) }));
+    case "hostUiRequest": {
+      const item: TranscriptMessage = {
+        kind: "hostRequest",
+        id: crypto.randomUUID(),
+        createdAt: event.timestamp,
+        request: event.request,
+      };
+      transcript.push(item);
       break;
+    }
     default:
       break;
   }
