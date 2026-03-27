@@ -32,6 +32,7 @@ interface ComposerPanelProps {
   readonly onSetModel: (provider: string, modelId: string) => void;
   readonly onSetThinking: (level: string) => void;
   readonly onSubmit: () => void;
+  readonly treatAsRunning: boolean;
   readonly showMentionMenu: boolean;
   readonly mentionOptions: readonly string[];
   readonly selectedMentionIndex: number;
@@ -65,6 +66,7 @@ export function ComposerPanel({
   onSetModel,
   onSetThinking,
   onSubmit,
+  treatAsRunning,
   showMentionMenu,
   mentionOptions,
   selectedMentionIndex,
@@ -225,7 +227,7 @@ export function ComposerPanel({
           />
           <div className="composer__bar">
             <div className="composer__hint">
-              {selectedSession.status === "running" ? runningLabel : "Enter to send · Shift+Enter for newline"}
+              {treatAsRunning ? runningLabel : "Enter to send · Shift+Enter for newline"}
               <ModelSelector
                 runtime={runtime}
                 session={selectedSession}
@@ -238,20 +240,20 @@ export function ComposerPanel({
                 aria-label="Attach image"
                 className="icon-button composer__attach"
                 type="button"
-                disabled={selectedSession.status === "running"}
+                disabled={treatAsRunning}
                 onClick={onPickImages}
               >
                 <PlusIcon />
               </button>
               <button
-                aria-label={selectedSession.status === "running" ? "Stop run" : "Send message"}
+                aria-label={treatAsRunning ? "Stop run" : "Send message"}
                 className="button button--primary button--cta-icon"
                 data-testid="send"
                 type="button"
-                disabled={!composerDraft.trim() && attachments.length === 0 && selectedSession.status !== "running"}
+                disabled={!composerDraft.trim() && attachments.length === 0 && !treatAsRunning}
                 onClick={onSubmit}
               >
-                {selectedSession.status === "running" ? <StopSquareIcon /> : <ArrowUpIcon />}
+                {treatAsRunning ? <StopSquareIcon /> : <ArrowUpIcon />}
               </button>
             </div>
           </div>

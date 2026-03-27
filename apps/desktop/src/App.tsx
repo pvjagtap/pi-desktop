@@ -207,9 +207,29 @@ export default function App() {
   const skillsRuntime = skillsWorkspace ? snapshot?.runtimeByWorkspace[skillsWorkspace.id] : undefined;
   const [attachmentsClearedOnSubmit, setAttachmentsClearedOnSubmit] = useState(false);
   const composerAttachments = attachmentsClearedOnSubmit ? [] : (snapshot?.composerAttachments ?? []);
-  const runningLabel = useRunningLabel(selectedSession?.status === "running" ? selectedSession.runningSince : undefined);
+  const isSessionRunning = selectedSession?.status === "running";
+  const runningLabel = useRunningLabel(isSessionRunning ? selectedSession.runningSince : undefined);
   const selectedSessionKey = `${selectedWorkspace?.id ?? ""}:${selectedSession?.id ?? ""}`;
   const persistedComposerDraft = snapshot?.composerDraft ?? "";
+
+  // Keep treating the session as "running" for a short cooldown after it transitions
+  // away from running — prevents accidental message sends during brief idle gaps
+  // between agent turns.
+  const [stopCooldown, setStopCooldown] = useState(false);
+  const prevRunningRef = useRef(false);
+  useEffect(() => {
+    if (prevRunningRef.current && !isSessionRunning) {
+      setStopCooldown(true);
+      const timer = window.setTimeout(() => setStopCooldown(false), 1500);
+      return () => window.clearTimeout(timer);
+    }
+    prevRunningRef.current = Boolean(isSessionRunning);
+    if (isSessionRunning) {
+      setStopCooldown(false);
+    }
+    return undefined;
+  }, [isSessionRunning]);
+  const treatAsRunning = Boolean(isSessionRunning || stopCooldown);
   const threadGroups = useMemo(
     () => (snapshot ? buildThreadGroups(snapshot) : []),
     [snapshot?.workspaces, snapshot?.worktreesByWorkspace],
@@ -245,7 +265,7 @@ export default function App() {
     selectedSessionKey,
     selectedSession,
     selectedWorkspace,
-    isRunning: selectedSession?.status === "running",
+    isRunning: treatAsRunning,
     api,
     setSnapshot,
     focusComposer,
@@ -455,7 +475,7 @@ export default function App() {
       return;
     }
 
-    if (selectedSession.status === "running") {
+    if (treatAsRunning) {
       void updateSnapshot(api, setSnapshot, () => api.cancelCurrentRun());
       return;
     }
@@ -703,7 +723,7 @@ export default function App() {
       return;
     }
 
-    if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing && selectedSession?.status === "running") {
+    if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing && treatAsRunning) {
       event.preventDefault();
       submitComposerDraft();
       return;
@@ -967,6 +987,7 @@ export default function App() {
               onSetModel={handleSetSessionModel}
               onSetThinking={handleSetSessionThinking}
               onSubmit={submitComposerDraft}
+              treatAsRunning={treatAsRunning}
               runningLabel={runningLabel}
               selectedSession={selectedSession}
               selectedSlashCommand={slashMenu.activeSlashOptionCommand ?? slashMenu.selectedSlashCommand}
