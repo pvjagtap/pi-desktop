@@ -1,6 +1,6 @@
 import { sessionKey } from "@pi-gui/pi-sdk-driver";
 import type { SessionRef } from "@pi-gui/session-driver";
-import type { ComposerImageAttachment, DesktopAppState, WorkspaceSessionTarget } from "../src/desktop-state";
+import type { ComposerImageAttachment, DesktopAppState, TranscriptMessage, WorkspaceSessionTarget } from "../src/desktop-state";
 import { toSessionRef } from "./app-store-utils";
 import {
   formatSessionConfigStatus,
@@ -17,6 +17,8 @@ import {
   toTranscriptAttachments,
 } from "./app-store-utils";
 import type { AppStoreInternals } from "./app-store-internals";
+import { app, clipboard, dialog, BrowserWindow } from "electron";
+import { writeFile } from "node:fs/promises";
 
 /* ── Public methods ─────────────────────────────────────── */
 
@@ -289,6 +291,157 @@ async function runComposerCommand(
     return finishComposerCommand(store, sessionRef, key, "Reloaded session resources");
   }
 
+  if (parsed.type === "new") {
+    store.sessionState.composerDraftsBySession.delete(key);
+    store.state = {
+      ...store.state,
+      activeView: "new-thread",
+      composerDraft: "",
+      lastError: undefined,
+      revision: store.state.revision + 1,
+    };
+    store.schedulePersistUiState();
+    return store.emit();
+  }
+
+  if (parsed.type === "resume") {
+    store.sessionState.composerDraftsBySession.delete(key);
+    store.state = {
+      ...store.state,
+      activeView: "threads",
+      composerDraft: "",
+      lastError: undefined,
+      revision: store.state.revision + 1,
+    };
+    store.schedulePersistUiState();
+    return store.emit();
+  }
+
+  if (parsed.type === "copy") {
+    const transcript = store.sessionState.transcriptCache.get(key) ?? [];
+    const lastAssistant = [...transcript]
+      .reverse()
+      .find((m): m is TranscriptMessage & { kind: "message"; role: "assistant" } =>
+        m.kind === "message" && "role" in m && m.role === "assistant",
+      );
+    if (lastAssistant) {
+      clipboard.writeText(lastAssistant.text);
+      return finishComposerCommand(store, sessionRef, key, "Copied last assistant message to clipboard");
+    }
+    return finishComposerCommand(store, sessionRef, key, "No assistant message to copy");
+  }
+
+  if (parsed.type === "export") {
+    const transcript = store.sessionState.transcriptCache.get(key) ?? [];
+    const workspace = store.state.workspaces.find((entry) => entry.id === sessionRef.workspaceId);
+    const session = workspace?.sessions.find((entry) => entry.id === sessionRef.sessionId);
+    const title = session?.title ?? sessionRef.sessionId;
+    const html = buildExportHtml(transcript, title);
+    const win = BrowserWindow.getFocusedWindow();
+    if (win) {
+      const defaultName = sanitizeFileName(title);
+      const result = await dialog.showSaveDialog(win, {
+        defaultPath: parsed.filePath ?? `${defaultName}.html`,
+        filters: [{ name: "HTML Files", extensions: ["html"] }],
+      });
+      if (!result.canceled && result.filePath) {
+        await writeFile(result.filePath, html, "utf-8");
+        return finishComposerCommand(store, sessionRef, key, `Session exported to ${result.filePath}`);
+      }
+    }
+    return finishComposerCommand(store, sessionRef, key, "Export cancelled");
+  }
+
+  if (parsed.type === "share") {
+    const transcript = store.sessionState.transcriptCache.get(key) ?? [];
+    const workspace = store.state.workspaces.find((entry) => entry.id === sessionRef.workspaceId);
+    const session = workspace?.sessions.find((entry) => entry.id === sessionRef.sessionId);
+    const title = session?.title ?? sessionRef.sessionId;
+    const md = buildShareableMarkdown(transcript, title);
+    clipboard.writeText(md);
+    return finishComposerCommand(store, sessionRef, key, "Session transcript copied to clipboard as markdown");
+  }
+
+  if (parsed.type === "hotkeys") {
+    const shortcuts = [
+      "Ctrl+, — Settings",
+      "Ctrl+Shift+O — New thread",
+      "Enter — Send message",
+      "Shift+Enter — New line",
+      "/ — Slash commands",
+      "Escape — Cancel",
+    ].join(" · ");
+    return finishComposerCommand(store, sessionRef, key, `Keyboard shortcuts: ${shortcuts}`);
+  }
+
+  if (parsed.type === "changelog") {
+    const version = app.getVersion();
+    return finishComposerCommand(store, sessionRef, key, `pi desktop v${version}`);
+  }
+
+  if (parsed.type === "fork") {
+    const workspace = store.state.workspaces.find((entry) => entry.id === sessionRef.workspaceId);
+    const session = workspace?.sessions.find((entry) => entry.id === sessionRef.sessionId);
+    if (!workspace) {
+      return store.withError("No workspace found for fork");
+    }
+    const ws = store.workspaceRefFromState(workspace.id);
+    if (!ws) {
+      return store.withError("Workspace ref not found");
+    }
+    const forkedSnapshot = await store.driver.createSession(ws, {
+      title: `Fork of ${session?.title ?? sessionRef.sessionId}`,
+    });
+    const forkedKey = sessionKey(forkedSnapshot.ref);
+    store.sessionState.transcriptCache.set(forkedKey, []);
+    store.sessionState.loadedTranscriptKeys.add(forkedKey);
+    store.updateSessionConfig(forkedSnapshot.ref, forkedSnapshot.config);
+    await store.ensureSessionSubscribed(forkedSnapshot.ref);
+    return store.refreshState({
+      selectedWorkspaceId: forkedSnapshot.ref.workspaceId,
+      selectedSessionId: forkedSnapshot.ref.sessionId,
+      composerDraft: "",
+      clearLastError: true,
+      activeView: "threads",
+    });
+  }
+
+  if (parsed.type === "tree") {
+    const workspace = store.state.workspaces.find((entry) => entry.id === sessionRef.workspaceId);
+    const sessions = workspace?.sessions ?? [];
+    const activeSessions = sessions.filter((s) => !s.archivedAt);
+    const lines = activeSessions.map(
+      (s) => `${s.id === sessionRef.sessionId ? "▸ " : "  "}${s.title ?? s.id} (${s.status})`,
+    );
+    return finishComposerCommand(
+      store,
+      sessionRef,
+      key,
+      `Sessions in ${workspace?.name ?? "workspace"}:\n${lines.join("\n") || "No sessions"}`,
+    );
+  }
+
+  if (parsed.type === "quit") {
+    try {
+      await store.driver.cancelCurrentRun(sessionRef);
+    } catch {
+      /* session may not be running */
+    }
+    clearActiveAssistantMessage(store.sessionState.activeAssistantMessageBySession, sessionRef);
+    store.sessionState.sessionErrorsBySession.delete(key);
+    return finishComposerCommand(store, sessionRef, key, "Stopped current session");
+  }
+
+  if (parsed.type === "exit") {
+    try {
+      await store.driver.cancelCurrentRun(sessionRef);
+    } catch {
+      /* session may not be running */
+    }
+    app.quit();
+    return store.emit();
+  }
+
   return store.withError(`Unsupported slash command: ${commandText}`);
 }
 
@@ -337,4 +490,49 @@ function finishComposerCommand(
   };
   store.schedulePersistUiState();
   return store.emit();
+}
+
+/* ── Export / share helpers ──────────────────────────────── */
+
+function sanitizeFileName(name: string): string {
+  return name.replace(/[<>:"/\\|?*]+/g, "_").replace(/\s+/g, "-").slice(0, 100) || "session";
+}
+
+function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function buildExportHtml(transcript: readonly TranscriptMessage[], title: string): string {
+  const messages = transcript
+    .filter((m): m is TranscriptMessage & { kind: "message" } => m.kind === "message")
+    .map((m) => {
+      const role = "role" in m ? (m.role as string) : "system";
+      const text = "text" in m ? escapeHtml(m.text as string) : "";
+      const roleLabel = role === "user" ? "You" : "Assistant";
+      const bgColor = role === "user" ? "#f0f0f0" : "#ffffff";
+      return `<div style="padding:12px 16px;margin:8px 0;border-radius:8px;background:${bgColor}"><strong>${roleLabel}</strong><pre style="white-space:pre-wrap;margin:8px 0 0 0;font-family:inherit">${text}</pre></div>`;
+    })
+    .join("\n");
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="utf-8"><title>${escapeHtml(title)}</title>
+<style>body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;max-width:800px;margin:0 auto;padding:24px;color:#1a1a1a}h1{font-size:1.4em;border-bottom:1px solid #eee;padding-bottom:8px}pre{font-size:0.95em}</style>
+</head>
+<body><h1>${escapeHtml(title)}</h1>${messages}</body></html>`;
+}
+
+function buildShareableMarkdown(transcript: readonly TranscriptMessage[], title: string): string {
+  const lines = [`# ${title}`, ""];
+  for (const m of transcript) {
+    if (m.kind === "message" && "role" in m && "text" in m) {
+      const role = m.role === "user" ? "**You**" : "**Assistant**";
+      lines.push(role, "", m.text as string, "", "---", "");
+    }
+  }
+  return lines.join("\n");
 }

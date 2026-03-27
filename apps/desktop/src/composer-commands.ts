@@ -14,7 +14,18 @@ export type ComposerSlashCommandKind =
   | "logout"
   | "settings"
   | "scoped-models"
-  | "skill";
+  | "skill"
+  | "new"
+  | "resume"
+  | "copy"
+  | "export"
+  | "share"
+  | "hotkeys"
+  | "changelog"
+  | "fork"
+  | "tree"
+  | "quit"
+  | "exit";
 
 export interface ComposerSlashCommand {
   readonly id: string;
@@ -56,7 +67,18 @@ export type ParsedComposerCommand =
   | { type: "session" }
   | { type: "reload" }
   | { type: "compact"; customInstructions?: string }
-  | { type: "name"; title: string };
+  | { type: "name"; title: string }
+  | { type: "new" }
+  | { type: "resume" }
+  | { type: "copy" }
+  | { type: "export"; filePath?: string }
+  | { type: "share" }
+  | { type: "hotkeys" }
+  | { type: "changelog" }
+  | { type: "fork" }
+  | { type: "tree" }
+  | { type: "quit" }
+  | { type: "exit" };
 
 const INCOMPLETE_COMMAND_MESSAGES: Readonly<Record<string, string>> = {
   "/compact": "Add optional instructions after /compact or send it directly from the slash menu.",
@@ -177,6 +199,116 @@ const BUILTIN_SLASH_COMMANDS: readonly ComposerSlashCommand[] = [
     template: "/reload",
     title: "Reload",
     description: "Reload prompts, skills, and session resources",
+    submitMode: "immediate",
+    section: "commands",
+  },
+  {
+    id: "new",
+    kind: "new",
+    command: "/new",
+    template: "/new",
+    title: "New",
+    description: "Start a new session",
+    submitMode: "immediate",
+    section: "commands",
+  },
+  {
+    id: "resume",
+    kind: "resume",
+    command: "/resume",
+    template: "/resume",
+    title: "Resume",
+    description: "Pick from previous sessions",
+    submitMode: "immediate",
+    section: "commands",
+  },
+  {
+    id: "copy",
+    kind: "copy",
+    command: "/copy",
+    template: "/copy",
+    title: "Copy",
+    description: "Copy last assistant message to clipboard",
+    submitMode: "immediate",
+    section: "commands",
+  },
+  {
+    id: "export",
+    kind: "export",
+    command: "/export",
+    template: "/export",
+    title: "Export",
+    description: "Export session to HTML file",
+    submitMode: "immediate",
+    section: "commands",
+  },
+  {
+    id: "share",
+    kind: "share",
+    command: "/share",
+    template: "/share",
+    title: "Share",
+    description: "Copy session transcript to clipboard as markdown",
+    submitMode: "immediate",
+    section: "commands",
+  },
+  {
+    id: "hotkeys",
+    kind: "hotkeys",
+    command: "/hotkeys",
+    template: "/hotkeys",
+    title: "Hotkeys",
+    description: "Show all keyboard shortcuts",
+    submitMode: "immediate",
+    section: "commands",
+  },
+  {
+    id: "changelog",
+    kind: "changelog",
+    command: "/changelog",
+    template: "/changelog",
+    title: "Changelog",
+    description: "Display version history",
+    submitMode: "immediate",
+    section: "commands",
+  },
+  {
+    id: "fork",
+    kind: "fork",
+    command: "/fork",
+    template: "/fork",
+    title: "Fork",
+    description: "Create a new session from the current point",
+    submitMode: "immediate",
+    section: "commands",
+  },
+  {
+    id: "tree",
+    kind: "tree",
+    command: "/tree",
+    template: "/tree",
+    title: "Tree",
+    description: "Show session tree and branches",
+    submitMode: "immediate",
+    section: "commands",
+  },
+  {
+    id: "quit",
+    kind: "quit",
+    command: "/quit",
+    template: "/quit",
+    title: "Quit",
+    description: "Stop the current running session",
+    submitMode: "immediate",
+    section: "commands",
+  },
+  {
+    id: "exit",
+    kind: "exit",
+    command: "/exit",
+    template: "/exit",
+    title: "Exit",
+    description: "Stop current run and close the application",
     submitMode: "immediate",
     section: "commands",
   },
@@ -395,10 +527,43 @@ export function parseComposerCommand(value: string): ParsedComposerCommand | und
   if (trimmed === "/reload") {
     return { type: "reload" };
   }
+  if (trimmed === "/new") {
+    return { type: "new" };
+  }
+  if (trimmed === "/resume") {
+    return { type: "resume" };
+  }
+  if (trimmed === "/copy") {
+    return { type: "copy" };
+  }
+  if (trimmed === "/share") {
+    return { type: "share" };
+  }
+  if (trimmed === "/hotkeys") {
+    return { type: "hotkeys" };
+  }
+  if (trimmed === "/changelog") {
+    return { type: "changelog" };
+  }
+  if (trimmed === "/fork") {
+    return { type: "fork" };
+  }
+  if (trimmed === "/tree") {
+    return { type: "tree" };
+  }
+  if (trimmed === "/quit") {
+    return { type: "quit" };
+  }
+  if (trimmed === "/exit") {
+    return { type: "exit" };
+  }
 
   const [command, ...rest] = trimmed.split(/\s+/);
   if (command === "/compact") {
     return { type: "compact", customInstructions: rest.join(" ").trim() || undefined };
+  }
+  if (command === "/export") {
+    return { type: "export", filePath: rest.join(" ").trim() || undefined };
   }
   if (command === "/name") {
     const title = rest.join(" ").trim();

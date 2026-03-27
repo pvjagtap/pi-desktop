@@ -191,6 +191,18 @@ export function useSlashMenu(params: UseSlashMenuParams): SlashMenuState {
       return;
     }
 
+    if (command.kind === "new" || command.kind === "resume" || command.kind === "exit") {
+      if (!api) {
+        return;
+      }
+      resetSlashUi();
+      setComposerDraft("");
+      void updateSnapshot(api, setSnapshot, () => api.submitComposer(command.command)).then((state) => {
+        setComposerDraft(state.composerDraft);
+      });
+      return;
+    }
+
     if (submitMode === "immediate") {
       if (mode === "enter") {
         if (!api) {
