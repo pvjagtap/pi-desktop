@@ -1,4 +1,5 @@
-import { join } from "node:path";
+import { mkdir } from "node:fs/promises";
+import { dirname, join } from "node:path";
 import { JsonCatalogStore, PiSdkDriver, type PiSdkDriverConfig, sessionKey } from "@pi-gui/pi-sdk-driver";
 import type { SessionCatalogEntry } from "@pi-gui/catalogs";
 import type { SessionConfig, SessionDriverEvent, SessionRef, WorkspaceRef } from "@pi-gui/session-driver";
@@ -346,6 +347,9 @@ export class DesktopAppStore implements AppStoreInternals {
   /* ── Internal infrastructure (AppStoreInternals) ───────── */
 
   private async initializeInternal(): Promise<void> {
+    // Ensure the userData directory exists before any reads or writes.
+    // On Windows, the Roaming/pi directory may not exist on first launch.
+    await mkdir(dirname(this.uiStateFilePath), { recursive: true });
     try {
       const persisted = await this.readUiState();
       this.state = {
