@@ -81,6 +81,23 @@ function createWindow(): BrowserWindow {
       return;
     }
 
+    // Zoom: Ctrl+= / Ctrl+- / Ctrl+0
+    if ((process.platform === "darwin" ? input.meta : input.control) && !input.shift && !input.alt) {
+      const zoomKey = input.key === "=" || input.key === "+" ? "in"
+        : input.key === "-" ? "out"
+        : input.key === "0" ? "reset"
+        : undefined;
+      if (zoomKey) {
+        event.preventDefault();
+        const wc = window.webContents;
+        const current = wc.getZoomLevel();
+        if (zoomKey === "in") wc.setZoomLevel(Math.min(current + 0.5, 5));
+        else if (zoomKey === "out") wc.setZoomLevel(Math.max(current - 0.5, -3));
+        else wc.setZoomLevel(0);
+        return;
+      }
+    }
+
     const command = getDesktopCommandFromShortcut({
       modifier: process.platform === "darwin" ? input.meta : input.control,
       shift: input.shift,

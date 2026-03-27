@@ -366,6 +366,9 @@ async function runComposerCommand(
     const shortcuts = [
       "Ctrl+, — Settings",
       "Ctrl+Shift+O — New thread",
+      "Ctrl+= — Zoom in",
+      "Ctrl+- — Zoom out",
+      "Ctrl+0 — Reset zoom",
       "Enter — Send message",
       "Shift+Enter — New line",
       "/ — Slash commands",
