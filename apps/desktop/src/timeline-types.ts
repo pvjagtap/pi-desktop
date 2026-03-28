@@ -1,5 +1,4 @@
 import type { SessionTranscriptMessage, SessionTranscriptRole } from "@pi-gui/pi-sdk-driver";
-import type { HostUiRequest } from "@pi-gui/session-driver";
 
 export type SessionRole = SessionTranscriptRole;
 export type TimelineTone = "neutral" | "success" | "warning" | "error";
@@ -39,11 +38,4 @@ export interface TimelineSummary {
   readonly presentation: TimelineSummaryPresentation;
 }
 
-export interface TimelineHostRequest {
-  readonly kind: "hostRequest";
-  readonly id: string;
-  readonly createdAt: string;
-  readonly request: HostUiRequest;
-}
-
-export type TranscriptMessage = SessionTranscriptMessage | TimelineActivity | TimelineToolCall | TimelineSummary | TimelineHostRequest;
+export type TranscriptMessage = SessionTranscriptMessage | TimelineActivity | TimelineToolCall | TimelineSummary;

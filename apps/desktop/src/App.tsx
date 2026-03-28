@@ -14,6 +14,7 @@ import { DiffPanel } from "./diff-panel";
 import type { ComposerSlashCommand } from "./composer-commands";
 import { desktopCommands, getDesktopCommandFromShortcut, type PiDesktopCommand } from "./ipc";
 import { SkillsView } from "./skills-view";
+import { ExtensionsView } from "./extensions-view";
 import { SettingsView, type SettingsSection } from "./settings-view";
 import { TimelineItem } from "./timeline-item";
 import { SecondarySurface } from "./secondary-surface";
@@ -26,6 +27,7 @@ import { useSlashMenu } from "./hooks/use-slash-menu";
 import { useMentionMenu } from "./hooks/use-mention-menu";
 import { useThreadSearch } from "./hooks/use-thread-search";
 import { useWorkspaceMenu } from "./hooks/use-workspace-menu";
+import { buildExtensionDockModel, ExtensionDialog, hasExtensionDockContent } from "./extension-session-ui";
 
 function useDesktopAppState() {
   const [snapshot, setSnapshot] = useState<DesktopAppState | null>(null);
@@ -112,10 +114,12 @@ export default function App() {
   const [settingsSection, setSettingsSection] = useState<SettingsSection>("general");
   const [settingsWorkspaceId, setSettingsWorkspaceId] = useState("");
   const [skillsWorkspaceId, setSkillsWorkspaceId] = useState("");
+  const [extensionsWorkspaceId, setExtensionsWorkspaceId] = useState("");
   const [newThreadRootWorkspaceId, setNewThreadRootWorkspaceId] = useState("");
   const [newThreadEnvironment, setNewThreadEnvironment] = useState<"local" | "new-worktree">("local");
   const [newThreadPrompt, setNewThreadPrompt] = useState("");
   const [themeMode, setThemeMode] = useState<"system" | "light" | "dark">("system");
+  const [dockExpandedBySession, setDockExpandedBySession] = useState<Record<string, boolean>>({});
   const composerRef = useRef<HTMLTextAreaElement | null>(null);
   const timelinePaneRef = useRef<HTMLDivElement | null>(null);
   const lastTranscriptMarkerRef = useRef("");
@@ -203,13 +207,23 @@ export default function App() {
   const skillsWorkspace = skillsWorkspaceId
     ? rootWorkspaceOptions.find((workspace) => workspace.id === skillsWorkspaceId)
     : undefined;
+  const extensionsWorkspace = extensionsWorkspaceId
+    ? rootWorkspaceOptions.find((workspace) => workspace.id === extensionsWorkspaceId)
+    : undefined;
   const settingsRuntime = settingsWorkspace ? snapshot?.runtimeByWorkspace[settingsWorkspace.id] : undefined;
   const skillsRuntime = skillsWorkspace ? snapshot?.runtimeByWorkspace[skillsWorkspace.id] : undefined;
+  const extensionsRuntime = extensionsWorkspace ? snapshot?.runtimeByWorkspace[extensionsWorkspace.id] : undefined;
   const [attachmentsClearedOnSubmit, setAttachmentsClearedOnSubmit] = useState(false);
   const composerAttachments = attachmentsClearedOnSubmit ? [] : (snapshot?.composerAttachments ?? []);
   const isSessionRunning = selectedSession?.status === "running";
   const runningLabel = useRunningLabel(isSessionRunning ? selectedSession.runningSince : undefined);
   const selectedSessionKey = `${selectedWorkspace?.id ?? ""}:${selectedSession?.id ?? ""}`;
+  const selectedSessionCommands = selectedSession ? snapshot?.sessionCommandsBySession[selectedSessionKey] ?? [] : [];
+  const selectedExtensionUi = selectedSession ? snapshot?.sessionExtensionUiBySession[selectedSessionKey] : undefined;
+  const selectedExtensionDock = useMemo(() => buildExtensionDockModel(selectedExtensionUi), [selectedExtensionUi]);
+  const displayedSessionTitle = selectedExtensionUi?.title ?? selectedSession?.title ?? "";
+  const activeExtensionDialog = selectedExtensionUi?.pendingDialogs[0];
+  const isSelectedExtensionDockExpanded = dockExpandedBySession[selectedSessionKey] ?? false;
   const persistedComposerDraft = snapshot?.composerDraft ?? "";
 
   // Keep treating the session as "running" for a short cooldown after it transitions
@@ -262,6 +276,7 @@ export default function App() {
     composerDraft,
     setComposerDraft,
     selectedRuntime,
+    sessionCommands: selectedSessionCommands,
     selectedSessionKey,
     selectedSession,
     selectedWorkspace,
@@ -292,12 +307,38 @@ export default function App() {
       return;
     }
     setComposerDraft(snapshot.composerDraft);
-  }, [selectedSessionKey]);
+  }, [persistedComposerDraft, selectedSessionKey]);
+
+  useEffect(() => {
+    const sessionExtensionUiBySession = snapshot?.sessionExtensionUiBySession;
+    if (!sessionExtensionUiBySession) {
+      setDockExpandedBySession((current) => (Object.keys(current).length > 0 ? {} : current));
+      return;
+    }
+
+    setDockExpandedBySession((current) => {
+      let next: Record<string, boolean> | undefined;
+      for (const [sessionKey, expanded] of Object.entries(current)) {
+        if (!expanded && sessionExtensionUiBySession[sessionKey]) {
+          continue;
+        }
+        if (hasExtensionDockContent(sessionExtensionUiBySession[sessionKey])) {
+          continue;
+        }
+        if (!next) {
+          next = { ...current };
+        }
+        delete next[sessionKey];
+      }
+      return next ?? current;
+    });
+  }, [snapshot?.sessionExtensionUiBySession]);
 
   useEffect(() => {
     if (rootWorkspaceOptions.length === 0) {
       setSettingsWorkspaceId("");
       setSkillsWorkspaceId("");
+      setExtensionsWorkspaceId("");
       setNewThreadRootWorkspaceId("");
       return;
     }
@@ -305,6 +346,9 @@ export default function App() {
       rootWorkspaceOptions.some((workspace) => workspace.id === current) ? current : (current || rootWorkspaceOptions[0]?.id || ""),
     );
     setSkillsWorkspaceId((current) =>
+      rootWorkspaceOptions.some((workspace) => workspace.id === current) ? current : (current || rootWorkspaceOptions[0]?.id || ""),
+    );
+    setExtensionsWorkspaceId((current) =>
       rootWorkspaceOptions.some((workspace) => workspace.id === current) ? current : (current || rootWorkspaceOptions[0]?.id || ""),
     );
     setNewThreadRootWorkspaceId((current) =>
@@ -455,6 +499,17 @@ export default function App() {
       setSkillsWorkspaceId(nextWorkspaceId);
     }
     setActiveView("skills");
+  };
+
+  const openExtensions = (workspaceId?: string) => {
+    const nextWorkspaceId =
+      workspaceId && rootWorkspaceOptions.some((workspace) => workspace.id === workspaceId)
+        ? workspaceId
+        : extensionsWorkspace?.id || rootWorkspaceOptions[0]?.id || "";
+    if (nextWorkspaceId) {
+      setExtensionsWorkspaceId(nextWorkspaceId);
+    }
+    setActiveView("extensions");
   };
 
   const openNewThreadSurface = (workspaceId?: string) => {
@@ -641,6 +696,20 @@ export default function App() {
     void api.openSkillInFinder(skillsWorkspace.id, filePath);
   };
 
+  const handleToggleExtension = (filePath: string, enabled: boolean) => {
+    if (!extensionsWorkspace) {
+      return;
+    }
+    void updateSnapshot(api, setSnapshot, () => api.setExtensionEnabled(extensionsWorkspace.id, filePath, enabled));
+  };
+
+  const handleOpenExtensionFolder = (filePath: string) => {
+    if (!extensionsWorkspace) {
+      return;
+    }
+    void api.openExtensionInFinder(extensionsWorkspace.id, filePath);
+  };
+
   const handleTrySkill = (command: string) => {
     void updateSnapshot(api, setSnapshot, () => api.setActiveView("threads"));
     slashMenu.fillComposerFromSlash(command);
@@ -665,6 +734,34 @@ export default function App() {
     void updateSnapshot(api, setSnapshot, () => api.selectSession(target)).then(() => {
       focusComposer();
     });
+  };
+
+  const handleRespondToExtensionDialog = (
+    response:
+      | { readonly requestId: string; readonly value: string }
+      | { readonly requestId: string; readonly confirmed: boolean }
+      | { readonly requestId: string; readonly cancelled: true },
+  ) => {
+    if (!selectedWorkspace || !selectedSession) {
+      return;
+    }
+
+    void updateSnapshot(api, setSnapshot, () =>
+      api.respondToHostUiRequest(selectedWorkspace.id, selectedSession.id, response),
+    ).then(() => {
+      focusComposer();
+    });
+  };
+
+  const handleToggleExtensionDock = () => {
+    if (!selectedExtensionDock) {
+      return;
+    }
+
+    setDockExpandedBySession((current) => ({
+      ...current,
+      [selectedSessionKey]: !(current[selectedSessionKey] ?? false),
+    }));
   };
 
   const handleUnarchiveSession = (target: { workspaceId: string; sessionId: string }) => {
@@ -838,6 +935,40 @@ export default function App() {
     );
   }
 
+  if (snapshot.activeView === "extensions") {
+    return (
+      <SecondarySurface onBack={() => setActiveView("threads")} testId="extensions-surface" title="Extensions">
+        <div className="surface-toolbar">
+          <label className="surface-toolbar__field">
+            <span>Workspace</span>
+            <select
+              value={extensionsWorkspace?.id ?? ""}
+              onChange={(event) => setExtensionsWorkspaceId(event.target.value)}
+            >
+              {rootWorkspaceOptions.map((workspace) => (
+                <option key={workspace.id} value={workspace.id}>
+                  {workspace.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+        <ExtensionsView
+          workspace={extensionsWorkspace}
+          runtime={extensionsRuntime}
+          onOpenExtensionFolder={handleOpenExtensionFolder}
+          onRefresh={() => {
+            if (!extensionsWorkspace) {
+              return;
+            }
+            void updateSnapshot(api, setSnapshot, () => api.refreshRuntime(extensionsWorkspace.id));
+          }}
+          onToggleExtension={handleToggleExtension}
+        />
+      </SecondarySurface>
+    );
+  }
+
   return (
     <div className="shell">
       <Sidebar
@@ -854,6 +985,7 @@ export default function App() {
         onNewThread={() => openNewThreadSurface()}
         onSetActiveView={setActiveView}
         onOpenSkills={openSkills}
+        onOpenExtensions={openExtensions}
         onOpenSettings={openSettings}
         onArchiveSession={handleArchiveSession}
         onSelectSession={handleSelectSession}
@@ -868,6 +1000,7 @@ export default function App() {
           rootWorkspace={rootWorkspace}
           selectedWorkspace={selectedWorkspace}
           selectedSession={selectedSession}
+          selectedSessionTitle={displayedSessionTitle || selectedSession?.title}
           selectedWorktree={selectedWorktree}
           activeWorktrees={activeWorktrees}
           workspaces={snapshot.workspaces}
@@ -925,7 +1058,7 @@ export default function App() {
                       : `${selectedWorkspace.name} · Local`}
                   </div>
                   <div className="chat-header__row">
-                    <h1 className="chat-header__title">{selectedSession.title}</h1>
+                    <h1 className="chat-header__title">{displayedSessionTitle}</h1>
                     <div className="chat-header__status">
                       {selectedSession.status === "running" ? runningLabel : formatRelativeTime(selectedSession.updatedAt)}
                     </div>
@@ -964,7 +1097,6 @@ export default function App() {
                 </div>
               </div>
             </section>
-
             <ComposerPanel
               activeSlashCommand={slashMenu.activeSlashFlow?.command}
               activeSlashCommandMeta={slashMenu.activeSlashFlow?.command?.description}
@@ -1001,7 +1133,13 @@ export default function App() {
               mentionOptions={mentionMenu.mentionOptions}
               selectedMentionIndex={mentionMenu.selectedIndex}
               onSelectMention={mentionMenu.insertMention}
+              extensionDock={selectedExtensionDock}
+              extensionDockExpanded={isSelectedExtensionDockExpanded}
+              onToggleExtensionDock={handleToggleExtensionDock}
             />
+            {activeExtensionDialog ? (
+              <ExtensionDialog dialog={activeExtensionDialog} onRespond={handleRespondToExtensionDialog} />
+            ) : null}
           </>
         ) : selectedWorkspace ? (
           <section className="canvas canvas--empty">
@@ -1047,5 +1185,3 @@ function isNearBottom(element: HTMLDivElement): boolean {
   const remaining = element.scrollHeight - element.scrollTop - element.clientHeight;
   return remaining < 32;
 }
-
-

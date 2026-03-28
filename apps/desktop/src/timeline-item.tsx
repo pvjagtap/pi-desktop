@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { SessionTranscriptMessage } from "@pi-gui/pi-sdk-driver";
-import type { TimelineActivity, TimelineToolCall, TimelineSummary, TimelineHostRequest, TranscriptMessage } from "./timeline-types";
+import type { TimelineActivity, TimelineToolCall, TimelineSummary, TranscriptMessage } from "./timeline-types";
 import { MessageMarkdown } from "./message-markdown";
 import { InlineDiff, extractDiffFromOutput } from "./diff-inline";
 import { ChevronRightIcon, CopyIcon } from "./icons";
@@ -19,8 +19,6 @@ export function TimelineItem({
       return <TimelineToolCallItem item={item} />;
     case "summary":
       return <TimelineSummaryItem item={item} />;
-    case "hostRequest":
-      return <TimelineHostRequestItem item={item} />;
     default:
       return null;
   }
@@ -200,69 +198,6 @@ function statusLabel(status: "running" | "success" | "error") {
   if (status === "running") return "running";
   if (status === "success") return "done";
   return "failed";
-}
-
-function TimelineHostRequestItem({ item }: { readonly item: TimelineHostRequest }) {
-  const { request } = item;
-  switch (request.kind) {
-    case "confirm":
-      return (
-        <div className="timeline-activity timeline-activity--neutral">
-          <span className="timeline-activity__label">Confirm: {request.title}</span>
-          <span className="timeline-activity__detail">{request.message}</span>
-        </div>
-      );
-    case "input":
-      return (
-        <div className="timeline-activity timeline-activity--neutral">
-          <span className="timeline-activity__label">Input: {request.title}</span>
-          {request.placeholder ? <span className="timeline-activity__detail">{request.placeholder}</span> : null}
-        </div>
-      );
-    case "select":
-      return (
-        <div className="timeline-activity timeline-activity--neutral">
-          <span className="timeline-activity__label">Select: {request.title}</span>
-          <span className="timeline-activity__detail">{request.options.join(", ")}</span>
-        </div>
-      );
-    case "notify":
-      return (
-        <div className={`timeline-activity timeline-activity--${request.level === "error" ? "error" : request.level === "warning" ? "warning" : "neutral"}`}>
-          <span className="timeline-activity__label">{request.message}</span>
-        </div>
-      );
-    case "status":
-      return (
-        <div className="timeline-activity timeline-activity--neutral">
-          <span className="timeline-activity__label">{request.text ?? request.key}</span>
-        </div>
-      );
-    case "widget":
-      return (
-        <div className="timeline-activity timeline-activity--neutral">
-          <span className="timeline-activity__label">{request.lines?.join(" · ") ?? request.key}</span>
-        </div>
-      );
-    case "title":
-      return (
-        <div className="timeline-activity timeline-activity--success">
-          <span className="timeline-activity__label">Session renamed to {request.title}</span>
-        </div>
-      );
-    case "editorText":
-      return (
-        <div className="timeline-activity timeline-activity--neutral">
-          <span className="timeline-activity__label">Prepared editor text</span>
-        </div>
-      );
-    default:
-      return (
-        <div className="timeline-activity timeline-activity--neutral">
-          <span className="timeline-activity__label">Requested input</span>
-        </div>
-      );
-  }
 }
 
 function TimelineSummaryItem({ item }: { readonly item: TimelineSummary }) {
