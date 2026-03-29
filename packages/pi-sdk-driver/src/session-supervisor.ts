@@ -94,6 +94,7 @@ interface ManagedSessionRecord {
   >;
   extensionUiState: ExtensionUiState;
   sessionCommands: RuntimeCommandRecord[];
+  isBinding: boolean;
 }
 
 interface RegisteredCommandAdapter {
@@ -124,6 +125,8 @@ export class SessionSupervisor {
   private readonly createAgentSessionImpl: (options?: CreateAgentSessionOptions) => Promise<{ session: AgentSession }>;
   private readonly modelRegistry: ModelRegistry | undefined;
   private readonly records = new Map<string, ManagedSessionRecord>();
+  /** Prevent concurrent ensureRecord calls from spawning duplicate processes. */
+  private readonly pendingOpen = new Map<string, Promise<ManagedSessionRecord>>();
 
   constructor(options: PiSdkDriverOptions = {}) {
     this.catalogs = options.catalogFilePath
@@ -246,14 +249,48 @@ export class SessionSupervisor {
     }
   }
 
+  /** Dispose all open sessions and their child processes. Used on app shutdown. */
+  destroyAllSessions(): void {
+    for (const [key, record] of this.records) {
+      record.unsubscribeAgent?.();
+      record.unsubscribeAgent = undefined;
+      record.listeners.clear();
+      record.session?.dispose();
+      this.records.delete(key);
+    }
+    this.pendingOpen.clear();
+  }
+
+  /**
+   * Reset all "running" catalog statuses to "idle" on cold start.
+   * After an app restart no sessions are actually streaming — the stale
+   * "running" status just causes ensureSubscriptionsForSessions to mass-open
+   * every previously-active session (Issue #14).
+   */
+  async resetRunningStatuses(): Promise<void> {
+    const snapshot = await this.catalogs.sessions.listSessions();
+    for (const entry of snapshot.sessions) {
+      if (entry.status === "running") {
+        await this.catalogs.sessions.upsertSession({ ...entry, status: "idle" });
+      }
+    }
+  }
+
   async getTranscript(sessionRef: SessionRef): Promise<SessionTranscriptMessage[]> {
     const record = await this.ensureRecord(sessionRef);
     return transcriptFromMessages(record.session?.messages ?? [], record.updatedAt);
   }
 
   async getSessionCommands(sessionRef: SessionRef): Promise<readonly RuntimeCommandRecord[]> {
-    const record = await this.ensureRecord(sessionRef);
-    return record.sessionCommands;
+    // Return cached commands without spawning a pi.exe process for sessions
+    // that are not already open (Issue #11: refreshSessionCommandsForWorkspace
+    // was opening every session in a workspace just to read commands).
+    const key = sessionKey(sessionRef);
+    const existing = this.records.get(key);
+    if (!existing?.session || existing.closed) {
+      return [];
+    }
+    return existing.sessionCommands;
   }
 
   async respondToHostUiRequest(sessionRef: SessionRef, response: HostUiResponse): Promise<void> {
@@ -446,6 +483,12 @@ export class SessionSupervisor {
     const record = await this.ensureRecord(sessionRef);
     const session = this.requireSession(record);
 
+    // Skip reload while the session is actively streaming to avoid
+    // corrupting an in-flight agent turn (Issue #2).
+    if (session.isStreaming) {
+      return;
+    }
+
     this.resetExtensionUi(record);
     await session.reload();
     await this.syncRecordAfterSessionMutation(record, { emitUpdate: true });
@@ -527,6 +570,27 @@ export class SessionSupervisor {
       return existing;
     }
 
+    // Coalesce concurrent opens for the same session key so only one
+    // createAgentSessionImpl (which spawns a pi.exe child process) runs.
+    const inflight = this.pendingOpen.get(key);
+    if (inflight) {
+      return inflight;
+    }
+
+    const opening = this.openRecord(sessionRef, key, existing);
+    this.pendingOpen.set(key, opening);
+    try {
+      return await opening;
+    } finally {
+      this.pendingOpen.delete(key);
+    }
+  }
+
+  private async openRecord(
+    sessionRef: SessionRef,
+    key: string,
+    existing: ManagedSessionRecord | undefined,
+  ): Promise<ManagedSessionRecord> {
     const sessionEntry = await this.catalogs.sessions.getSession(sessionRef);
     if (!sessionEntry) {
       throw new Error(`Session ${key} is not in the catalog.`);
@@ -596,6 +660,7 @@ export class SessionSupervisor {
       pendingHostUiRequests: new Map(),
       extensionUiState: createEmptyExtensionUiState(),
       sessionCommands: [],
+      isBinding: false,
     };
 
     record.unsubscribeAgent = session.subscribe((event) => {
@@ -620,15 +685,21 @@ export class SessionSupervisor {
   }
 
   private async bindSessionRuntime(record: ManagedSessionRecord): Promise<void> {
-    const session = this.requireSession(record);
-    await session.bindExtensions({
-      uiContext: this.createExtensionUiContext(record),
-      commandContextActions: this.createCommandContextActions(record),
-      onError: (error) => {
-        void this.emitExtensionError(record, error.extensionPath, error.event, error.error);
-      },
-    });
-    record.sessionCommands = this.collectSessionCommands(session);
+    if (record.isBinding) return;
+    record.isBinding = true;
+    try {
+      const session = this.requireSession(record);
+      await session.bindExtensions({
+        uiContext: this.createExtensionUiContext(record),
+        commandContextActions: this.createCommandContextActions(record),
+        onError: (error) => {
+          void this.emitExtensionError(record, error.extensionPath, error.event, error.error);
+        },
+      });
+      record.sessionCommands = this.collectSessionCommands(session);
+    } finally {
+      record.isBinding = false;
+    }
   }
 
   private createCommandContextActions(record: ManagedSessionRecord): ExtensionCommandContextActions {
@@ -990,6 +1061,20 @@ export class SessionSupervisor {
     const nextKey = sessionKey(nextRef);
 
     if (previousKey !== nextKey) {
+      // Notify listeners about the old key so the app-store can clean up
+      // stale subscription entries before the record is re-keyed (Issue #4).
+      await this.emit(record, {
+        type: "sessionClosed",
+        sessionRef: record.ref,
+        timestamp: nowIso(),
+        reason: "manual",
+      });
+
+      // Remove the old session entry from the catalog so that future
+      // refreshState calls do not try to re-open the stale key and spawn
+      // a duplicate pi.exe process (Issue #12 — catalog ghost entries).
+      await this.catalogs.sessions.deleteSession(record.ref).catch(() => {});
+
       this.records.delete(previousKey);
       record.ref = nextRef;
       this.records.set(nextKey, record);

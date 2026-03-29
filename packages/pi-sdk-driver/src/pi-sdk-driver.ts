@@ -112,6 +112,14 @@ export class PiSdkDriver implements SessionDriver {
     return this.supervisor.removeWorkspace(workspaceId);
   }
 
+  destroyAllSessions(): void {
+    return this.supervisor.destroyAllSessions();
+  }
+
+  resetRunningStatuses(): Promise<void> {
+    return this.supervisor.resetRunningStatuses();
+  }
+
   getTranscript(sessionRef: SessionRef) {
     return this.supervisor.getTranscript(sessionRef);
   }
