@@ -498,19 +498,11 @@ export default function App() {
         : skillsWorkspace?.id || rootWorkspaceOptions[0]?.id || "";
     if (nextWorkspaceId) {
       setSkillsWorkspaceId(nextWorkspaceId);
+      if (!extensionsWorkspaceId) {
+        setExtensionsWorkspaceId(nextWorkspaceId);
+      }
     }
     setActiveView("skills");
-  };
-
-  const openExtensions = (workspaceId?: string) => {
-    const nextWorkspaceId =
-      workspaceId && rootWorkspaceOptions.some((workspace) => workspace.id === workspaceId)
-        ? workspaceId
-        : extensionsWorkspace?.id || rootWorkspaceOptions[0]?.id || "";
-    if (nextWorkspaceId) {
-      setExtensionsWorkspaceId(nextWorkspaceId);
-    }
-    setActiveView("extensions");
   };
 
   const openNewThreadSurface = (workspaceId?: string) => {
@@ -896,15 +888,35 @@ export default function App() {
     );
   }
 
-  if (snapshot.activeView === "skills") {
+  if (snapshot.activeView === "skills" || snapshot.activeView === "extensions") {
+    const skillsExtTab = snapshot.activeView === "extensions" ? "extensions" : "skills";
+    const navItems = [
+      { id: "skills", label: "Skills" },
+      { id: "extensions", label: "Extensions" },
+    ];
+    const currentWorkspace = skillsExtTab === "skills" ? skillsWorkspace : extensionsWorkspace;
+    const currentRuntime = skillsExtTab === "skills" ? skillsRuntime : extensionsRuntime;
     return (
-      <SecondarySurface onBack={() => setActiveView("threads")} testId="skills-surface" title="Skills">
+      <SecondarySurface
+        onBack={() => setActiveView("threads")}
+        testId="skills-extensions-surface"
+        title="Skills & Extensions"
+        navItems={navItems}
+        activeNavId={skillsExtTab}
+        onSelectNav={(id) => setActiveView(id as AppView)}
+      >
         <div className="surface-toolbar">
           <label className="surface-toolbar__field">
             <span>Workspace</span>
             <select
-              value={skillsWorkspace?.id ?? ""}
-              onChange={(event) => setSkillsWorkspaceId(event.target.value)}
+              value={currentWorkspace?.id ?? ""}
+              onChange={(event) => {
+                if (skillsExtTab === "skills") {
+                  setSkillsWorkspaceId(event.target.value);
+                } else {
+                  setExtensionsWorkspaceId(event.target.value);
+                }
+              }}
             >
               {rootWorkspaceOptions.map((workspace) => (
                 <option key={workspace.id} value={workspace.id}>
@@ -914,60 +926,41 @@ export default function App() {
             </select>
           </label>
         </div>
-        <SkillsView
-          workspace={skillsWorkspace}
-          runtime={skillsRuntime}
-          onOpenSkillFolder={handleOpenSkillFolder}
-          onRefresh={() => {
-            if (!skillsWorkspace) {
-              return;
+        {skillsExtTab === "skills" ? (
+          <SkillsView
+            workspace={skillsWorkspace}
+            runtime={skillsRuntime}
+            onOpenSkillFolder={handleOpenSkillFolder}
+            onRefresh={() => {
+              if (!skillsWorkspace) {
+                return;
+              }
+              void updateSnapshot(api, setSnapshot, () => api.refreshRuntime(skillsWorkspace.id));
+            }}
+            onToggleSkill={handleToggleSkill}
+            onReadSkillSource={(workspaceId, filePath) => api.readSkillSource(workspaceId, filePath)}
+            onTrySkill={(skill) =>
+              handleTrySkill(
+                skill.filePath
+                  ? `${skill.slashCommand} `
+                  : "Create a new skill for this workspace and explain which files you will add.",
+              )
             }
-            void updateSnapshot(api, setSnapshot, () => api.refreshRuntime(skillsWorkspace.id));
-          }}
-          onToggleSkill={handleToggleSkill}
-          onReadSkillSource={(workspaceId, filePath) => api.readSkillSource(workspaceId, filePath)}
-          onTrySkill={(skill) =>
-            handleTrySkill(
-              skill.filePath
-                ? `${skill.slashCommand} `
-                : "Create a new skill for this workspace and explain which files you will add.",
-            )
-          }
-        />
-      </SecondarySurface>
-    );
-  }
-
-  if (snapshot.activeView === "extensions") {
-    return (
-      <SecondarySurface onBack={() => setActiveView("threads")} testId="extensions-surface" title="Extensions">
-        <div className="surface-toolbar">
-          <label className="surface-toolbar__field">
-            <span>Workspace</span>
-            <select
-              value={extensionsWorkspace?.id ?? ""}
-              onChange={(event) => setExtensionsWorkspaceId(event.target.value)}
-            >
-              {rootWorkspaceOptions.map((workspace) => (
-                <option key={workspace.id} value={workspace.id}>
-                  {workspace.name}
-                </option>
-              ))}
-            </select>
-          </label>
-        </div>
-        <ExtensionsView
-          workspace={extensionsWorkspace}
-          runtime={extensionsRuntime}
-          onOpenExtensionFolder={handleOpenExtensionFolder}
-          onRefresh={() => {
-            if (!extensionsWorkspace) {
-              return;
-            }
-            void updateSnapshot(api, setSnapshot, () => api.refreshRuntime(extensionsWorkspace.id));
-          }}
-          onToggleExtension={handleToggleExtension}
-        />
+          />
+        ) : (
+          <ExtensionsView
+            workspace={extensionsWorkspace}
+            runtime={extensionsRuntime}
+            onOpenExtensionFolder={handleOpenExtensionFolder}
+            onRefresh={() => {
+              if (!extensionsWorkspace) {
+                return;
+              }
+              void updateSnapshot(api, setSnapshot, () => api.refreshRuntime(extensionsWorkspace.id));
+            }}
+            onToggleExtension={handleToggleExtension}
+          />
+        )}
       </SecondarySurface>
     );
   }
@@ -988,7 +981,6 @@ export default function App() {
         onNewThread={() => openNewThreadSurface()}
         onSetActiveView={setActiveView}
         onOpenSkills={openSkills}
-        onOpenExtensions={openExtensions}
         onOpenSettings={openSettings}
         onArchiveSession={handleArchiveSession}
         onSelectSession={handleSelectSession}
@@ -1013,6 +1005,8 @@ export default function App() {
           updateSnapshot={updateSnapshot}
           showDiffPanel={showDiffPanel}
           onToggleDiffPanel={() => setShowDiffPanel((prev) => !prev)}
+          themeMode={themeMode}
+          onToggleTheme={() => handleSetThemeMode(themeMode === "dark" ? "light" : "dark")}
         />
 
         {snapshot.activeView === "new-thread" ? (

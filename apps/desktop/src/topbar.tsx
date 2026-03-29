@@ -1,6 +1,6 @@
 import type { MouseEvent as ReactMouseEvent, Dispatch, SetStateAction } from "react";
 import type { AppView, DesktopAppState, SessionRecord, WorkspaceRecord, WorktreeRecord } from "./desktop-state";
-import { DiffIcon, FolderIcon } from "./icons";
+import { DiffIcon, FolderIcon, SunIcon, MoonIcon } from "./icons";
 import type { PiDesktopApi } from "./ipc";
 import type { WorkspaceMenuState } from "./hooks/use-workspace-menu";
 
@@ -23,6 +23,8 @@ interface TopbarProps {
   ) => Promise<DesktopAppState>;
   readonly showDiffPanel: boolean;
   readonly onToggleDiffPanel: () => void;
+  readonly themeMode: "system" | "light" | "dark";
+  readonly onToggleTheme: () => void;
 }
 
 export function Topbar(props: TopbarProps) {
@@ -41,6 +43,8 @@ export function Topbar(props: TopbarProps) {
     updateSnapshot,
     showDiffPanel,
     onToggleDiffPanel,
+    themeMode,
+    onToggleTheme,
   } = props;
 
   const handleDoubleClick = (event: ReactMouseEvent<HTMLElement>) => {
@@ -125,6 +129,14 @@ export function Topbar(props: TopbarProps) {
       </div>
 
       <div className="topbar__actions">
+        <button
+          aria-label={themeMode === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+          className="icon-button topbar__icon"
+          type="button"
+          onClick={onToggleTheme}
+        >
+          {themeMode === "dark" ? <SunIcon /> : <MoonIcon />}
+        </button>
         <button
           aria-label="Toggle diff panel"
           className={`icon-button topbar__icon ${showDiffPanel ? "icon-button--active" : ""}`}

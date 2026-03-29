@@ -234,3 +234,31 @@ export function SidebarToggleIcon() {
     </Icon>
   );
 }
+
+export function SunIcon() {
+  return (
+    <Icon>
+      <circle cx="10" cy="10" r="3" stroke="currentColor" strokeWidth="1.4" fill="none" />
+      <path
+        d="M10 3.5v1.2M10 15.3v1.2M3.5 10h1.2M15.3 10h1.2M5.4 5.4l.85.85M13.75 13.75l.85.85M5.4 14.6l.85-.85M13.75 6.25l.85-.85"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeWidth="1.4"
+      />
+    </Icon>
+  );
+}
+
+export function MoonIcon() {
+  return (
+    <Icon>
+      <path
+        d="M14.3 11.5A5.5 5.5 0 0 1 8.5 5.7a5.5 5.5 0 1 0 5.8 5.8Z"
+        stroke="currentColor"
+        strokeLinejoin="round"
+        strokeWidth="1.4"
+        fill="none"
+      />
+    </Icon>
+  );
+}

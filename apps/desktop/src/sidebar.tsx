@@ -1,6 +1,6 @@
 import type { AppView, SessionRecord, WorkspaceRecord, WorktreeRecord } from "./desktop-state";
 import piIconUrl from "./assets/pi-icon.png";
-import { ArchiveIcon, ChevronDownIcon, ExtensionIcon, FolderIcon, PlusIcon, RestoreIcon, SettingsIcon, SidebarToggleIcon, SkillIcon, WorktreeIcon } from "./icons";
+import { ArchiveIcon, ChevronDownIcon, ExtensionIcon, FolderIcon, PlusIcon, RestoreIcon, SettingsIcon, SidebarToggleIcon, WorktreeIcon } from "./icons";
 import type { PiDesktopApi } from "./ipc";
 import { formatRelativeTime } from "./string-utils";
 import type { WorkspaceMenuState } from "./hooks/use-workspace-menu";
@@ -26,7 +26,6 @@ interface SidebarProps {
   readonly onNewThread: () => void;
   readonly onSetActiveView: (view: AppView) => void;
   readonly onOpenSkills: (workspaceId?: string) => void;
-  readonly onOpenExtensions: (workspaceId?: string) => void;
   readonly onOpenSettings: (workspaceId?: string) => void;
   readonly onArchiveSession: (rootWorkspaceId: string, target: { workspaceId: string; sessionId: string }) => void;
   readonly onSelectSession: (target: { workspaceId: string; sessionId: string }) => void;
@@ -50,7 +49,6 @@ export function Sidebar(props: SidebarProps) {
     onNewThread,
     onSetActiveView,
     onOpenSkills,
-    onOpenExtensions,
     onOpenSettings,
     onArchiveSession,
     onSelectSession,
@@ -113,20 +111,12 @@ export function Sidebar(props: SidebarProps) {
             <span>Threads</span>
           </button>
           <button
-            className="sidebar__nav-item"
+            className={`sidebar__nav-item ${activeView === "skills" || activeView === "extensions" ? "sidebar__nav-item--active" : ""}`}
             type="button"
             onClick={() => onOpenSkills(selectedWorkspace?.rootWorkspaceId ?? selectedWorkspace?.id)}
           >
-            <SkillIcon />
-            <span>Skills</span>
-          </button>
-          <button
-            className="sidebar__nav-item"
-            type="button"
-            onClick={() => onOpenExtensions(selectedWorkspace?.rootWorkspaceId ?? selectedWorkspace?.id)}
-          >
             <ExtensionIcon />
-            <span>Extensions</span>
+            <span>Skills & Extensions</span>
           </button>
           <button
             className="sidebar__nav-item"
