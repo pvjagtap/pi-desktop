@@ -73,6 +73,32 @@ body,
   width: 100%;
   height: 100%;
   margin: 0;
+  overflow: hidden;
+}
+
+/* ── Slim modern scrollbars ─────────────────────────── */
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--muted-subtle, #a8a092) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: var(--muted-subtle, #a8a092);
+  border-radius: 3px;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--muted-soft, #948b7e);
 }
 
 body {

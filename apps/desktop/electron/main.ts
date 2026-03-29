@@ -55,6 +55,7 @@ function createWindow(): BrowserWindow {
   const resolvedTheme = themeManager.getResolvedTheme();
   const overlayColors = titleBarOverlayColors(resolvedTheme);
   const window = new BrowserWindow({
+    icon: path.join(app.getAppPath(), "build", "icon.ico"),
     width: 1480,
     height: 980,
     minWidth: 1200,

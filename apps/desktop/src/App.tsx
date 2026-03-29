@@ -126,6 +126,7 @@ export default function App() {
   const pinnedToBottomRef = useRef(true);
   const previousActiveViewRef = useRef<AppView | null>(null);
   const startingThreadRef = useRef(false);
+  const submittingRef = useRef(false);
   const [showJumpToLatest, setShowJumpToLatest] = useState(false);
   const [showDiffPanel, setShowDiffPanel] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -303,7 +304,7 @@ export default function App() {
   });
 
   useEffect(() => {
-    if (!snapshot) {
+    if (!snapshot || submittingRef.current) {
       return;
     }
     setComposerDraft(snapshot.composerDraft);
@@ -542,11 +543,13 @@ export default function App() {
     const previousDraft = composerDraft;
     setComposerDraft("");
     setAttachmentsClearedOnSubmit(true);
+    submittingRef.current = true;
     void (async () => {
-      const nextState = await updateSnapshot(api, setSnapshot, () => api.submitComposer(previousDraft));
-      setComposerDraft(nextState.composerDraft);
+      await updateSnapshot(api, setSnapshot, () => api.submitComposer(previousDraft));
+      submittingRef.current = false;
       setAttachmentsClearedOnSubmit(false);
     })().catch(() => {
+      submittingRef.current = false;
       setComposerDraft(previousDraft);
       setAttachmentsClearedOnSubmit(false);
     });

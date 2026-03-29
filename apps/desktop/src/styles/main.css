@@ -197,10 +197,9 @@
 
 .timeline-pane {
   width: 100%;
-  min-height: 420px;
+  min-height: 0;
   background: transparent;
   position: relative;
-  max-height: calc(100vh - 320px);
   overflow: auto;
   scroll-behavior: smooth;
 }
@@ -970,10 +969,12 @@
 }
 
 .secondary-surface {
-  min-height: 100vh;
+  height: 100%;
   display: grid;
   grid-template-columns: 280px minmax(0, 1fr);
+  grid-template-rows: 1fr;
   background: #f0ebe3;
+  overflow: hidden;
 }
 
 .secondary-surface__sidebar {
@@ -983,6 +984,7 @@
   padding: 56px 18px 20px;
   border-right: 1px solid #ddd6ca;
   background: #ebe5db;
+  overflow-y: auto;
 }
 
 .secondary-surface__back {

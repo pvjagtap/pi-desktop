@@ -62,7 +62,6 @@ export function ExtensionDock({
         aria-expanded={expanded}
         className="extension-dock__toggle"
         data-testid="extension-dock-toggle"
-        title={dock.summaryText}
         type="button"
         onClick={onToggle}
       >

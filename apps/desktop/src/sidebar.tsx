@@ -1,4 +1,5 @@
 import type { AppView, SessionRecord, WorkspaceRecord, WorktreeRecord } from "./desktop-state";
+import piIconUrl from "./assets/pi-icon.png";
 import { ArchiveIcon, ChevronDownIcon, ExtensionIcon, FolderIcon, PlusIcon, RestoreIcon, SettingsIcon, SidebarToggleIcon, SkillIcon, WorktreeIcon } from "./icons";
 import type { PiDesktopApi } from "./ipc";
 import { formatRelativeTime } from "./string-utils";
@@ -76,6 +77,20 @@ export function Sidebar(props: SidebarProps) {
   return (
     <aside className="sidebar">
       <div className="sidebar__top">
+        <div className="sidebar__collapse-row">
+          <div className="sidebar__logo">
+            <img className="sidebar__logo-icon" src={piIconUrl} alt="Pi" width="28" height="28" />
+            <span>Desktop</span>
+          </div>
+          <button
+            aria-label="Collapse sidebar"
+            className="sidebar__toggle-button"
+            type="button"
+            onClick={onToggleCollapse}
+          >
+            <SidebarToggleIcon />
+          </button>
+        </div>
         <div className="sidebar__top-row">
           <button
             className="sidebar__new"
@@ -85,14 +100,6 @@ export function Sidebar(props: SidebarProps) {
           >
             <PlusIcon />
             <span>New thread</span>
-          </button>
-          <button
-            aria-label="Collapse sidebar"
-            className="sidebar__toggle-button"
-            type="button"
-            onClick={onToggleCollapse}
-          >
-            <SidebarToggleIcon />
           </button>
         </div>
 

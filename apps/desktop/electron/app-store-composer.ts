@@ -219,6 +219,14 @@ export async function sendMessageToSession(
   store.sessionState.sessionErrorsBySession.delete(key);
   store.sessionState.composerDraftsBySession.delete(key);
   store.sessionState.composerAttachmentsBySession.delete(key);
+  // Clear state.composerDraft immediately so that any events emitted during
+  // sendUserMessage don't push the stale draft text to the renderer.
+  if (
+    store.state.selectedWorkspaceId === sessionRef.workspaceId &&
+    store.state.selectedSessionId === sessionRef.sessionId
+  ) {
+    store.state = { ...store.state, composerDraft: "" };
+  }
   await store.persistComposerAttachments(key, []);
   try {
     await store.driver.sendUserMessage(sessionRef, {
