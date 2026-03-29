@@ -1552,11 +1552,18 @@
   gap: 8px;
 }
 
-.settings-view,
-.skills-view {
+.settings-view {
   padding-bottom: 24px;
   width: min(1120px, 100%);
   margin: 0 auto;
+}
+
+.skills-view {
+  padding-bottom: 24px;
+  padding-left: 0;
+  padding-right: 0;
+  width: 100%;
+  max-width: 100%;
 }
 
 .settings-grid {
