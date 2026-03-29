@@ -60,7 +60,7 @@ function createWindow(): BrowserWindow {
     height: 980,
     minWidth: 1200,
     minHeight: 760,
-    backgroundColor: resolvedTheme === "dark" ? "#1e1f22" : "#f3f4f8",
+    backgroundColor: resolvedTheme === "dark" ? "#1e1f22" : "#f8f5f0",
     ...(isMac
       ? { titleBarStyle: "hiddenInset" as const, trafficLightPosition: { x: 18, y: 18 } }
       : { titleBarStyle: "hidden" as const, titleBarOverlay: { height: 38, ...overlayColors } }),
@@ -173,6 +173,15 @@ app.whenReady().then(async () => {
   ipcMain.handle(desktopIpc.setThemeMode, (_event, mode: ThemeMode) => {
     themeManager.setMode(mode);
     return mode;
+  });
+  ipcMain.handle(desktopIpc.updateTitleBarOverlay, (event, color: string, symbolColor: string) => {
+    const window = BrowserWindow.fromWebContents(event.sender);
+    if (!window || window.isDestroyed() || process.platform === "darwin") {
+      return;
+    }
+    try {
+      window.setTitleBarOverlay({ color, symbolColor });
+    } catch { /* setTitleBarOverlay not available on all platforms */ }
   });
   ipcMain.handle(desktopIpc.openExternal, (_event, url: string) => {
     const parsed = new URL(url);
@@ -438,8 +447,8 @@ function mimeTypeForPath(filePath: string): string {
 
 function titleBarOverlayColors(theme: "light" | "dark"): { color: string; symbolColor: string } {
   return theme === "dark"
-    ? { color: "#1e1f22", symbolColor: "#9ca3af" }
-    : { color: "#f3f4f8", symbolColor: "#6b7280" };
+    ? { color: "#1e1f22", symbolColor: "#7a7d85" }
+    : { color: "#f8f5f0", symbolColor: "#8e8577" };
 }
 
 function createRuntimeLoginCallbacks() {

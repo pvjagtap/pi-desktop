@@ -119,6 +119,7 @@ export default function App() {
   const [newThreadEnvironment, setNewThreadEnvironment] = useState<"local" | "new-worktree">("local");
   const [newThreadPrompt, setNewThreadPrompt] = useState("");
   const [themeMode, setThemeMode] = useState<"system" | "light" | "dark">("system");
+  const [resolvedTheme, setResolvedTheme] = useState<"light" | "dark">("light");
   const [dockExpandedBySession, setDockExpandedBySession] = useState<Record<string, boolean>>({});
   const composerRef = useRef<HTMLTextAreaElement | null>(null);
   const timelinePaneRef = useRef<HTMLDivElement | null>(null);
@@ -139,6 +140,7 @@ export default function App() {
 
     void piApi.getResolvedTheme().then((theme) => {
       document.documentElement.classList.toggle("dark", theme === "dark");
+      setResolvedTheme(theme);
     });
 
     void piApi.getThemeMode().then((mode) => {
@@ -147,6 +149,7 @@ export default function App() {
 
     const unsub = piApi.onThemeChanged((theme) => {
       document.documentElement.classList.toggle("dark", theme === "dark");
+      setResolvedTheme(theme);
     });
 
     return unsub;
@@ -429,6 +432,20 @@ export default function App() {
 
     previousActiveViewRef.current = snapshot.activeView;
   }, [selectedSession, snapshot]);
+
+  // Update title bar overlay to match the current view background and theme
+  useEffect(() => {
+    if (!snapshot || !api) {
+      return;
+    }
+    const isSecondary = snapshot.activeView === "settings" || snapshot.activeView === "skills" || snapshot.activeView === "extensions";
+    const isDark = resolvedTheme === "dark";
+    const color = isSecondary
+      ? (isDark ? "#1a1b1e" : "#f0ebe3")
+      : (isDark ? "#1e1f22" : "#f8f5f0");
+    const symbolColor = isDark ? "#7a7d85" : "#8e8577";
+    void api.updateTitleBarOverlay(color, symbolColor);
+  }, [snapshot?.activeView, resolvedTheme]);
 
   useEffect(() => {
     if (!api || composerDraft === persistedComposerDraft) {

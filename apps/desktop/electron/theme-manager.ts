@@ -9,7 +9,6 @@ export class ThemeManager {
   constructor() {
     nativeTheme.on("updated", () => {
       this.broadcast();
-      this.updateTitleBarOverlay();
     });
   }
 
@@ -36,23 +35,9 @@ export class ThemeManager {
       nativeTheme.themeSource = mode;
     }
     this.broadcast();
-    this.updateTitleBarOverlay();
   }
 
   private broadcast() {
     this.window?.webContents.send(desktopIpc.themeChanged, this.getResolvedTheme());
-  }
-
-  private updateTitleBarOverlay() {
-    if (!this.window || this.window.isDestroyed() || process.platform === "darwin") {
-      return;
-    }
-    const resolved = this.getResolvedTheme();
-    try {
-      this.window.setTitleBarOverlay({
-        color: resolved === "dark" ? "#1e1f22" : "#f3f4f8",
-        symbolColor: resolved === "dark" ? "#9ca3af" : "#6b7280",
-      });
-    } catch { /* setTitleBarOverlay not available on all platforms */ }
   }
 }

@@ -54,6 +54,7 @@ export const desktopIpc = {
   updateComposerDraft: "pi-gui:update-composer-draft",
   submitComposer: "pi-gui:submit-composer",
   toggleWindowMaximize: "pi-gui:toggle-window-maximize",
+  updateTitleBarOverlay: "pi-gui:update-title-bar-overlay",
   listWorkspaceFiles: "pi-gui:list-workspace-files",
   getChangedFiles: "pi-gui:get-changed-files",
   getFileDiff: "pi-gui:get-file-diff",
@@ -172,6 +173,7 @@ export interface PiDesktopApi {
   stageFile(workspaceId: string, filePath: string): Promise<void>;
   readSkillSource(workspaceId: string, filePath: string): Promise<string>;
   toggleWindowMaximize(): Promise<void>;
+  updateTitleBarOverlay(color: string, symbolColor: string): Promise<void>;
   openExternal(url: string): Promise<void>;
   getThemeMode(): Promise<"system" | "light" | "dark">;
   getResolvedTheme(): Promise<"light" | "dark">;

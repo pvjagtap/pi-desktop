@@ -121,6 +121,8 @@ contextBridge.exposeInMainWorld("piApp", {
   readSkillSource: (workspaceId: string, filePath: string) =>
     ipcRenderer.invoke(desktopIpc.readSkillSource, workspaceId, filePath) as Promise<string>,
   toggleWindowMaximize: () => ipcRenderer.invoke(desktopIpc.toggleWindowMaximize) as Promise<void>,
+  updateTitleBarOverlay: (color: string, symbolColor: string) =>
+    ipcRenderer.invoke(desktopIpc.updateTitleBarOverlay, color, symbolColor) as Promise<void>,
   openExternal: (url: string) => ipcRenderer.invoke(desktopIpc.openExternal, url) as Promise<void>,
   getThemeMode: () => ipcRenderer.invoke(desktopIpc.getThemeMode) as Promise<"system" | "light" | "dark">,
   getResolvedTheme: () => ipcRenderer.invoke(desktopIpc.getResolvedTheme) as Promise<"light" | "dark">,
