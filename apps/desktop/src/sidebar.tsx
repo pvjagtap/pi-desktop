@@ -153,6 +153,14 @@ export function Sidebar(props: SidebarProps) {
             <span>Explorer</span>
           </button>
 
+          {explorerExpanded && selectedWorkspace ? (
+            <FileExplorer
+              workspaceId={selectedWorkspace.id}
+              api={api}
+              onOpenFile={onOpenFileDiff}
+            />
+          ) : null}
+
           {changedFiles.length > 0 ? (
             <button
               className={`sidebar__nav-item ${filesExpanded ? "sidebar__nav-item--active" : ""}`}
@@ -209,14 +217,6 @@ export function Sidebar(props: SidebarProps) {
             <span>New thread</span>
           </button>
         </div>
-
-        {explorerExpanded && selectedWorkspace ? (
-          <FileExplorer
-            workspaceId={selectedWorkspace.id}
-            api={api}
-            onOpenFile={onOpenFileDiff}
-          />
-        ) : null}
       </div>
 
       <div className="sidebar__section">

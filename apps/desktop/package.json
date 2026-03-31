@@ -1,7 +1,7 @@
 {
   "name": "@pi-desktop/desktop",
   "private": true,
-  "version": "0.4.0",
+  "version": "0.4.1",
   "license": "MIT",
   "description": "Codex-style desktop shell for pi",
   "main": "dist-electron/main.js",
