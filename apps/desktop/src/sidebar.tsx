@@ -1,12 +1,15 @@
 import type { AppView, SessionRecord, WorkspaceRecord, WorktreeRecord } from "./desktop-state";
 import piIconUrl from "./assets/pi-icon.png";
-import { ArchiveIcon, ChevronDownIcon, ExtensionIcon, FolderIcon, PlusIcon, RestoreIcon, SettingsIcon, SidebarToggleIcon, WorktreeIcon } from "./icons";
+import { ArchiveIcon, ChevronDownIcon, ChevronRightIcon, DiffIcon, ExtensionIcon, FolderIcon, PlusIcon, RestoreIcon, SettingsIcon, SidebarToggleIcon, WorktreeIcon } from "./icons";
 import type { PiDesktopApi } from "./ipc";
 import { formatRelativeTime } from "./string-utils";
 import type { WorkspaceMenuState } from "./hooks/use-workspace-menu";
 import type { ThreadGroup, ThreadListEntry } from "./thread-groups";
-import type { Dispatch, SetStateAction } from "react";
+import { useState, type Dispatch, type SetStateAction } from "react";
 import type { DesktopAppState } from "./desktop-state";
+import type { ChangedFile } from "./use-changed-files";
+import { shortenPath } from "./use-changed-files";
+import { FileExplorer } from "./file-explorer";
 
 interface SidebarProps {
   readonly activeView: AppView;
@@ -32,6 +35,11 @@ interface SidebarProps {
   readonly onUnarchiveSession: (target: { workspaceId: string; sessionId: string }) => void;
   readonly collapsed: boolean;
   readonly onToggleCollapse: () => void;
+  readonly changedFiles: readonly ChangedFile[];
+  readonly hasGit: boolean;
+  readonly onOpenFileDiff: (filePath: string) => void;
+  readonly onStageFile: (filePath: string) => void;
+  readonly onDiscardFile: (filePath: string) => void;
 }
 
 export function Sidebar(props: SidebarProps) {
@@ -55,7 +63,15 @@ export function Sidebar(props: SidebarProps) {
     onUnarchiveSession,
     collapsed,
     onToggleCollapse,
+    changedFiles,
+    hasGit,
+    onOpenFileDiff,
+    onStageFile,
+    onDiscardFile,
   } = props;
+
+  const [filesExpanded, setFilesExpanded] = useState(false);
+  const [explorerExpanded, setExplorerExpanded] = useState(false);
 
   if (collapsed) {
     return (
@@ -99,6 +115,16 @@ export function Sidebar(props: SidebarProps) {
             <PlusIcon />
             <span>New thread</span>
           </button>
+          <button
+            aria-label="Open folder"
+            className="icon-button"
+            type="button"
+            onClick={() => {
+              void updateSnapshot(api, setSnapshot, () => api.pickWorkspace());
+            }}
+          >
+            <FolderIcon />
+          </button>
         </div>
 
         <div className="sidebar__nav">
@@ -126,25 +152,73 @@ export function Sidebar(props: SidebarProps) {
             <SettingsIcon />
             <span>Settings</span>
           </button>
+
+          <button
+            className={`sidebar__nav-item ${explorerExpanded ? "sidebar__nav-item--active" : ""}`}
+            type="button"
+            onClick={() => setExplorerExpanded((prev) => !prev)}
+          >
+            <FolderIcon />
+            <span>Explorer</span>
+          </button>
+
+          {changedFiles.length > 0 ? (
+            <button
+              className={`sidebar__nav-item ${filesExpanded ? "sidebar__nav-item--active" : ""}`}
+              type="button"
+              onClick={() => setFilesExpanded((prev) => !prev)}
+            >
+              <DiffIcon />
+              <span>Changed Files</span>
+              <span className="sidebar__badge">{changedFiles.length}</span>
+            </button>
+          ) : null}
         </div>
+
+        {filesExpanded && changedFiles.length > 0 ? (
+          <div className="sidebar__files-list">
+            {changedFiles.map((file) => (
+              <div className="sidebar__file-row" key={file.path}>
+                <button
+                  className="sidebar__file-name"
+                  type="button"
+                  onClick={() => onOpenFileDiff(file.path)}
+                  title={file.path}
+                >
+                  <span className={`diff-panel__status-dot diff-panel__status-dot--${file.status}`} />
+                  <span>{shortenPath(file.path)}</span>
+                </button>
+                {hasGit ? (
+                  <span className="sidebar__file-actions">
+                    <button
+                      className="diff-action-sm diff-action-sm--accept"
+                      type="button"
+                      title="Accept"
+                      onClick={() => onStageFile(file.path)}
+                    >✓</button>
+                    <button
+                      className="diff-action-sm diff-action-sm--reject"
+                      type="button"
+                      title="Reject"
+                      onClick={() => onDiscardFile(file.path)}
+                    >✗</button>
+                  </span>
+                ) : null}
+              </div>
+            ))}
+          </div>
+        ) : null}
+
+        {explorerExpanded && selectedWorkspace ? (
+          <FileExplorer
+            workspaceId={selectedWorkspace.id}
+            api={api}
+            onOpenFile={onOpenFileDiff}
+          />
+        ) : null}
       </div>
 
       <div className="sidebar__section">
-        <div className="section__head">
-          <span>Threads</span>
-          <div className="section__tools">
-            <button
-              aria-label="Open folder"
-              className="icon-button"
-              type="button"
-              onClick={() => {
-                void updateSnapshot(api, setSnapshot, () => api.pickWorkspace());
-              }}
-            >
-              <FolderIcon />
-            </button>
-          </div>
-        </div>
 
         {visibleWorkspaces.length === 0 ? (
           <div className="empty-state" data-testid="empty-state">
