@@ -262,3 +262,11 @@ export function MoonIcon() {
     </Icon>
   );
 }
+
+export function CloseIcon() {
+  return (
+    <Icon>
+      <path d="M5 5l10 10M15 5L5 15" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+    </Icon>
+  );
+}
